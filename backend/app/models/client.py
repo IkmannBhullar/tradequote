@@ -3,10 +3,10 @@
 from sqlalchemy import String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import TenantScopedModel
 
 
-class Client(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
+class Client(TenantScopedModel):
     __tablename__ = "clients"
     __table_args__ = (
         # `id` is already unique, so this looks redundant, but a foreign key

@@ -6,11 +6,11 @@ from datetime import datetime
 from sqlalchemy import BigInteger, CheckConstraint, ForeignKeyConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin, str_enum
+from app.models.base import TenantScopedModel, str_enum
 from app.models.enums import PaymentKind
 
 
-class Payment(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
+class Payment(TenantScopedModel):
     __tablename__ = "payments"
     __table_args__ = (
         # Tenant safety net: the job must belong to the same org.

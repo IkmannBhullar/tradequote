@@ -58,6 +58,17 @@ class TenantMixin:
     )
 
 
+class TenantScopedModel(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
+    """Abstract base for every tenant-owned table (users, clients, jobs...).
+
+    `__abstract__` means no table is created for this class itself. It exists
+    so repositories can be generic over "any model with an id and an
+    organization_id" and still be fully type-checked.
+    """
+
+    __abstract__ = True
+
+
 def str_enum[E: enum.StrEnum](enum_cls: type[E], name: str) -> Enum:
     """Column type for a Python StrEnum, stored as VARCHAR + CHECK constraint.
 

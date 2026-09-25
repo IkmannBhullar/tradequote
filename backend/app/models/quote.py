@@ -24,11 +24,17 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin, str_enum
+from app.models.base import (
+    Base,
+    TenantScopedModel,
+    TimestampMixin,
+    UUIDPrimaryKeyMixin,
+    str_enum,
+)
 from app.models.enums import MeasureType, QuoteStatus
 
 
-class Quote(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
+class Quote(TenantScopedModel):
     __tablename__ = "quotes"
     __table_args__ = (
         # Tenant safety net: a quote's job must belong to the same org.

@@ -5,11 +5,11 @@ import uuid
 from sqlalchemy import ForeignKeyConstraint, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin, str_enum
+from app.models.base import TenantScopedModel, str_enum
 from app.models.enums import JobStatus
 
 
-class Job(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
+class Job(TenantScopedModel):
     __tablename__ = "jobs"
     __table_args__ = (
         # Composite FK = tenant safety net: the (org, client) pair must exist
