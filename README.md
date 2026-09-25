@@ -8,8 +8,8 @@ approves it through a public link, and the job is tracked from quote to paid.
 
 Painting is the first trade; other trades are added through data, not code.
 
-> **Status:** Milestone 3 (auth + tenancy). Sign-up, login, and `/me` work; every request is
-> scoped to the caller's organization. Clients/jobs/quotes endpoints come next.
+> **Status:** Milestone 4 (core API). The full backend for building quotes works: clients, jobs,
+> quotes with measured areas, overrides, live recalculation, and versioning. The frontend is next.
 
 ## Stack
 
@@ -119,6 +119,34 @@ In Swagger UI (http://localhost:8000/docs), click **Authorize** and paste the to
   every query by that organization; tests prove one org can't reach another's data.
 - Not built yet (needed before onboarding customers beyond KBS): password reset, email
   verification, login rate limiting, refresh tokens.
+
+## Core API
+
+Explore it interactively at http://localhost:8000/docs (sign up, then **Authorize**).
+
+| Resource | Endpoints |
+| --- | --- |
+| Organization | `PATCH /organization` (owner only: labor rate, tax rate, name, logo) |
+| Templates | `GET /templates` (system templates + your own) |
+| Clients | `POST/GET /clients`, `GET/PATCH/DELETE /clients/{id}` |
+| Jobs | `POST/GET /jobs` (filter `status`, `client_id`), `GET/PATCH /jobs/{id}` |
+| Quotes | `POST/GET /jobs/{id}/quotes`, `GET/PATCH /quotes/{id}` |
+| Areas | `POST /quotes/{id}/areas`, `PATCH/DELETE /quotes/{id}/areas/{area_id}` |
+| Overrides | `PUT/DELETE /quotes/{id}/line-items/{line_id}/override` |
+| Versions | `POST /quotes/{id}/revisions`, `POST /quotes/{id}/refresh-rates` |
+
+How quotes behave:
+
+- **Live totals:** every change to a quote recalculates it in the same transaction and returns the
+  whole quote.
+- **Price snapshots:** a quote copies the organization's labor/tax rates when created, and each
+  area copies its template item's rates when added. Editing templates or settings never changes
+  an existing quote; `refresh-rates` deliberately pulls current prices into a draft.
+- **Only drafts are editable.** To change a sent/approved/declined quote, create a revision: a new
+  draft version (v2, v3...) copying the latest version's areas, rates, and overrides.
+- **Overrides** replace a line's quantity and/or unit price and survive recalculation.
+- Lists are paginated: `?limit=50&offset=0` returns `{items, total, limit, offset}`.
+- Another organization's ids always return 404, as if they didn't exist.
 
 ## Configuration
 
