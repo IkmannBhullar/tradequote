@@ -9,19 +9,18 @@ token -> verify it -> load the user -> derive the tenant. If any step fails,
 the endpoint never runs and the client gets a 401.
 """
 
-import uuid
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db_session
 from app.models import User
-from app.models.enums import UserRole
 from app.services import auth as auth_service
+from app.services.context import Tenant
 
 DbSession = Annotated[Session, Depends(get_db_session)]
 AppSettings = Annotated[Settings, Depends(get_settings)]
@@ -59,22 +58,25 @@ def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-@dataclass(frozen=True)
-class Tenant:
-    """Who is calling, and which organization's data they may touch.
-
-    Built ONLY from the authenticated user's database row. Routers pass
-    `organization_id` into tenant-scoped repositories; nothing in a request
-    body or URL can change it (architecture rule 2).
-    """
-
-    organization_id: uuid.UUID
-    user_id: uuid.UUID
-    role: UserRole
-
-
 def get_tenant(user: CurrentUser) -> Tenant:
     return Tenant(organization_id=user.organization_id, user_id=user.id, role=user.role)
 
 
 CurrentTenant = Annotated[Tenant, Depends(get_tenant)]
+
+
+@dataclass(frozen=True)
+class Pagination:
+    limit: int
+    offset: int
+
+
+def get_pagination(
+    limit: Annotated[int, Query(ge=1, le=200, description="Max items to return")] = 50,
+    offset: Annotated[int, Query(ge=0, description="Items to skip")] = 0,
+) -> Pagination:
+    # A hard upper limit stops one request from dumping a whole table.
+    return Pagination(limit=limit, offset=offset)
+
+
+PageParams = Annotated[Pagination, Depends(get_pagination)]

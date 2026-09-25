@@ -12,11 +12,18 @@ never from the request body or URL.
 
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from app.models.base import TenantScopedModel
+
+
+@dataclass(frozen=True)
+class PageResult[T]:
+    items: Sequence[T]
+    total: int  # matching rows across ALL pages, for "showing 1-50 of 312"
 
 
 class TenantRepository[ModelT: TenantScopedModel]:
@@ -45,6 +52,29 @@ class TenantRepository[ModelT: TenantScopedModel]:
 
     def list(self) -> Sequence[ModelT]:
         return self._session.scalars(self._scoped().order_by(self.model.created_at)).all()
+
+    def page(self, *, limit: int, offset: int) -> PageResult[ModelT]:
+        return self._page(self._scoped().order_by(self.model.created_at), limit, offset)
+
+    def _page(self, statement: Select[ModelT], limit: int, offset: int) -> PageResult[ModelT]:
+        """Run an (already tenant-scoped) query one page at a time.
+
+        Two queries: COUNT(*) over the filtered rows, then the page itself.
+        A stable ORDER BY (plus id as a tie-breaker) keeps pages from
+        overlapping or skipping rows between requests.
+        """
+        total = self._session.scalar(
+            select(func.count()).select_from(statement.order_by(None).subquery())
+        )
+        items = self._session.scalars(
+            statement.order_by(self.model.id).limit(limit).offset(offset)
+        ).all()
+        return PageResult(items=items, total=total or 0)
+
+    def delete(self, entity: ModelT) -> None:
+        # The entity was obtained through this repository, so it's ours.
+        self._session.delete(entity)
+        self._session.flush()
 
     def add(self, entity: ModelT) -> ModelT:
         """Insert a new row owned by this tenant.

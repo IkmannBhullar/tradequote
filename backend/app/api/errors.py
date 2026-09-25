@@ -5,6 +5,22 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.services.errors import (
+    ConflictError,
+    DomainError,
+    InvalidInputError,
+    NotFoundError,
+    PermissionDeniedError,
+)
+
+# Most specific first; checked in order.
+_STATUS_BY_ERROR: list[tuple[type[DomainError], int]] = [
+    (NotFoundError, status.HTTP_404_NOT_FOUND),
+    (ConflictError, status.HTTP_409_CONFLICT),
+    (PermissionDeniedError, status.HTTP_403_FORBIDDEN),
+    (InvalidInputError, status.HTTP_422_UNPROCESSABLE_CONTENT),
+]
+
 
 async def _validation_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """422 responses, minus the `input` field.
@@ -24,5 +40,14 @@ async def _validation_error_handler(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def _domain_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Turn a service's DomainError into the matching HTTP status."""
+    assert isinstance(exc, DomainError)
+    status_code = next(code for cls, code in _STATUS_BY_ERROR if isinstance(exc, cls))
+    return JSONResponse(status_code=status_code, content={"detail": exc.message})
+
+
 def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RequestValidationError, _validation_error_handler)
+    for error_class, _ in _STATUS_BY_ERROR:
+        app.add_exception_handler(error_class, _domain_error_handler)
