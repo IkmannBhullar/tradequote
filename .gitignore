@@ -1,0 +1,27 @@
+# --- Secrets / local config ---
+# Real env files hold credentials; only the documented .env.example is committed.
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- OS / editors ---
+.DS_Store
+.idea/
+.vscode/

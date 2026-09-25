@@ -1,0 +1,31 @@
+# Local infrastructure only. The backend and frontend run natively on your
+# machine (faster hot reload, easier debugging); Docker just provides Postgres
+# so everyone gets the exact same database version without installing it.
+#
+# Compose automatically reads `.env` in this folder for the ${...} values below;
+# the `:-default` part is used if a variable isn't set.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tradequote}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tradequote}
+      POSTGRES_DB: ${POSTGRES_DB:-tradequote}
+    ports:
+      # host_port:container_port. Inside the container Postgres is on 5432;
+      # on your Mac it's reachable on POSTGRES_PORT (default 5433).
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      # Named volume = data survives `docker compose down` (but not `down -v`).
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready reports when Postgres actually accepts connections, which is
+      # later than "container started". `docker compose up --wait` blocks on this.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tradequote} -d ${POSTGRES_DB:-tradequote}"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  db_data:
