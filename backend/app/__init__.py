@@ -1,0 +1,1 @@
+"""TradeQuote backend application package."""

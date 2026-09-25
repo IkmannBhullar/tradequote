@@ -1,0 +1,53 @@
+[project]
+name = "tradequote-backend"
+version = "0.1.0"
+description = "TradeQuote API"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.1.1",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff: linter + formatter (replaces flake8, isort, black, pyupgrade...).
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes (unused imports, undefined names), I import
+# sorting, B bugbear (likely bugs), UP modern-syntax upgrades, SIM
+# simplifications, N naming, RUF ruff-specific checks.
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "N", "RUF"]
+
+# ---------------------------------------------------------------------------
+# Mypy: static type checking. `strict` means every function must be fully
+# annotated and implicit `Any` is an error — cheap to start with, painful to
+# retrofit later.
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Fail on unknown markers and treat warnings as errors so deprecations get
+# noticed early instead of piling up silently.
+addopts = "--strict-markers"
+filterwarnings = ["error"]
