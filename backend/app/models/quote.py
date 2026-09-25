@@ -1,11 +1,15 @@
 """Quote, its measured areas, and its priced line items.
 
-- A Job can have several Quotes (versions 1, 2, 3...). Revising an approved
-  quote creates a new version instead of editing it (rule 7).
+- A Job can have several Quotes (versions 1, 2, 3...). Revising a sent or
+  approved quote creates a new version instead of editing it (rule 7).
 - QuoteArea is what the contractor measured ("Living room walls, 420 sq ft").
-- QuoteLineItem is the priced result. It's a *snapshot*: prices are copied in
-  when calculated, so later template changes never alter an existing quote
-  (rule 6).
+- QuoteLineItem is the priced result (one material + one labor line per area).
+
+Price snapshots (rule 6): a quote carries copies of every rate it uses. The
+labor/tax rates are copied onto the quote when it's created, and each area
+copies its template item's rates when it's added. Recalculation reads only
+these copies, so editing or deleting a template later can never change an
+existing quote.
 """
 
 import uuid
@@ -31,7 +35,7 @@ from app.models.base import (
     UUIDPrimaryKeyMixin,
     str_enum,
 )
-from app.models.enums import MeasureType, QuoteStatus
+from app.models.enums import LineItemKind, MeasureType, QuoteStatus
 
 
 class Quote(TenantScopedModel):
@@ -64,6 +68,8 @@ class Quote(TenantScopedModel):
             "status <> 'approved' OR (approved_at IS NOT NULL AND approved_by_name IS NOT NULL)",
             name="approval_recorded",
         ),
+        CheckConstraint("labor_rate_cents >= 0", name="labor_rate_non_negative"),
+        CheckConstraint("tax_rate >= 0 AND tax_rate <= 1", name="tax_rate_range"),
     )
 
     job_id: Mapped[uuid.UUID]
@@ -71,6 +77,9 @@ class Quote(TenantScopedModel):
     status: Mapped[QuoteStatus] = mapped_column(
         str_enum(QuoteStatus, "quote_status"), server_default=QuoteStatus.DRAFT.value
     )
+    # (M4) Snapshots of the organization's rates when this quote was created.
+    labor_rate_cents: Mapped[int] = mapped_column(BigInteger)
+    tax_rate: Mapped[Decimal] = mapped_column(Numeric(6, 5))
     # SHA-256 hex digest (always 64 chars) of the public approval token. The
     # raw token is only ever in the link we send; a leaked database can't be
     # turned back into working links (rule 8).
@@ -84,7 +93,10 @@ class Quote(TenantScopedModel):
     approved_by_name: Mapped[str | None] = mapped_column(String(200))
 
     areas: Mapped[list["QuoteArea"]] = relationship(
-        back_populates="quote", cascade="all, delete-orphan", passive_deletes=True
+        back_populates="quote",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="QuoteArea.position",
     )
     line_items: Mapped[list["QuoteLineItem"]] = relationship(
         back_populates="quote", cascade="all, delete-orphan", passive_deletes=True
@@ -99,6 +111,12 @@ class QuoteArea(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UniqueConstraint("quote_id", "id"),
         CheckConstraint("quantity >= 0", name="quantity_non_negative"),
         CheckConstraint("coats >= 1", name="coats_positive"),
+        # (M4) Same rules as the template_items these values are copied from.
+        CheckConstraint("material_unit_cost_cents >= 0", name="material_cost_non_negative"),
+        CheckConstraint("coverage_per_material_unit > 0", name="coverage_positive"),
+        CheckConstraint("waste_factor >= 0", name="waste_non_negative"),
+        CheckConstraint("labor_hours_per_unit >= 0", name="labor_non_negative"),
+        CheckConstraint("position >= 0", name="position_non_negative"),
     )
 
     # No organization_id here: areas are only ever reached through their quote,
@@ -107,14 +125,24 @@ class QuoteArea(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200))
     measure_type: Mapped[MeasureType] = mapped_column(str_enum(MeasureType, "measure_type"))
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3))
-    # SET NULL: deleting a template item must not delete or break quotes; the
-    # prices already live in quote_line_items. (The service layer must check
-    # the item belongs to the quote's org or is a system item. A DB constraint
-    # can't express "same org OR NULL org" simply.)
+    # Where the rates below were copied from. SET NULL: deleting a template
+    # item must not delete or break quotes (the snapshot has what we need).
     template_item_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("template_items.id", ondelete="SET NULL"), index=True
     )
     coats: Mapped[int]
+    # (M4) Display order within the quote. Explicit, because created_at can't
+    # order rows inserted in the same transaction: Postgres's now() is the
+    # transaction's start time, so they'd all tie.
+    position: Mapped[int]
+
+    # (M4) Snapshot of the template item's rates when the area was added.
+    material_name: Mapped[str] = mapped_column(String(200))
+    material_unit: Mapped[str] = mapped_column(String(50))
+    material_unit_cost_cents: Mapped[int] = mapped_column(BigInteger)
+    coverage_per_material_unit: Mapped[Decimal] = mapped_column(Numeric(10, 3))
+    waste_factor: Mapped[Decimal] = mapped_column(Numeric(5, 4))
+    labor_hours_per_unit: Mapped[Decimal] = mapped_column(Numeric(10, 5))
 
     quote: Mapped[Quote] = relationship(back_populates="areas")
 
@@ -132,6 +160,20 @@ class QuoteLineItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         CheckConstraint("quantity >= 0", name="quantity_non_negative"),
         CheckConstraint("unit_price_cents >= 0 AND total_cents >= 0", name="amounts_non_negative"),
+        # (M4) Each area has exactly one material and one labor line. This is
+        # the line's stable identity, which overrides attach to.
+        UniqueConstraint("area_id", "kind"),
+        CheckConstraint(
+            "(override_quantity IS NULL OR override_quantity >= 0)"
+            " AND (override_unit_price_cents IS NULL OR override_unit_price_cents >= 0)",
+            name="override_values_non_negative",
+        ),
+        # The flag can't disagree with the stored override values.
+        CheckConstraint(
+            "is_override = "
+            "(override_quantity IS NOT NULL OR override_unit_price_cents IS NOT NULL)",
+            name="override_flag_consistent",
+        ),
     )
 
     quote_id: Mapped[uuid.UUID] = mapped_column(
@@ -139,13 +181,19 @@ class QuoteLineItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     # NULL for lines that belong to the whole quote rather than one area.
     area_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
+    kind: Mapped[LineItemKind] = mapped_column(str_enum(LineItemKind, "line_item_kind"))
     description: Mapped[str] = mapped_column(Text)
+    # The values actually used (calculated, or the override where one is set).
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3))
     unit: Mapped[str] = mapped_column(String(50))
     unit_price_cents: Mapped[int] = mapped_column(BigInteger)
     total_cents: Mapped[int] = mapped_column(BigInteger)
-    # True when the contractor edited this line by hand; recalculation must
-    # keep it as-is.
+    # (M4) What the contractor overrode, stored separately from the result so
+    # recalculation knows exactly which parts to keep. E.g. a price-only
+    # override keeps following re-measured quantities.
+    override_quantity: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    override_unit_price_cents: Mapped[int | None] = mapped_column(BigInteger)
+    # True when either override value is set (enforced by a CHECK above).
     is_override: Mapped[bool] = mapped_column(server_default="false")
 
     quote: Mapped[Quote] = relationship(back_populates="line_items")

@@ -12,7 +12,7 @@ from collections.abc import Iterator
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import Engine, create_engine, inspect
+from sqlalchemy import CheckConstraint, Engine, create_engine, inspect
 from sqlalchemy.pool import NullPool
 
 from app.models import Base
@@ -58,4 +58,28 @@ def test_models_match_migrations(engine: Engine) -> None:
         "Models and migrations are out of sync. Run:\n"
         '  make migration name="describe your change"\n'
         f"Differences: {differences}"
+    )
+
+
+def test_check_constraints_match_models(engine: Engine) -> None:
+    # Autogenerate (and so the test above) can't see CHECK constraints added
+    # to existing tables, so a model CHECK missing from the migrations would
+    # go unnoticed. Compare them by name instead.
+    in_models = {
+        str(constraint.name)
+        for table in Base.metadata.tables.values()
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+    with engine.connect() as connection:
+        inspector = inspect(connection)
+        in_database = {
+            str(check["name"])
+            for table_name in inspector.get_table_names()
+            for check in inspector.get_check_constraints(table_name)
+        }
+
+    assert in_models == in_database, (
+        f"Only in models: {sorted(in_models - in_database)}\n"
+        f"Only in database: {sorted(in_database - in_models)}"
     )

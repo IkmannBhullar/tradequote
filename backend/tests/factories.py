@@ -40,7 +40,13 @@ def make_quote(
     session: Session, org: Organization, job: Job | None = None, version: int = 1
 ) -> Quote:
     job = job or make_job(session, org)
-    quote = Quote(organization_id=org.id, job_id=job.id, version=version)
+    quote = Quote(
+        organization_id=org.id,
+        job_id=job.id,
+        version=version,
+        labor_rate_cents=6500,
+        tax_rate=Decimal("0.05"),
+    )
     session.add(quote)
     session.flush()
     return quote
@@ -56,6 +62,14 @@ def make_area(
         quantity=Decimal("420"),
         template_item_id=template_item_id,
         coats=2,
+        position=0,
+        # Rate snapshot (normally copied from the template item).
+        material_name="Wall paint",
+        material_unit="gallon",
+        material_unit_cost_cents=4500,
+        coverage_per_material_unit=Decimal("350"),
+        waste_factor=Decimal("0.10"),
+        labor_hours_per_unit=Decimal("0.006"),
     )
     session.add(area)
     session.flush()

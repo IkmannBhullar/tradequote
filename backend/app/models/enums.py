@@ -39,3 +39,12 @@ class QuoteStatus(enum.StrEnum):
 class PaymentKind(enum.StrEnum):
     DEPOSIT = "deposit"
     FINAL = "final"
+
+
+class LineItemKind(enum.StrEnum):
+    """Which calculated line a quote line item is. Mirrors the estimating
+    engine's LineKind; the engine keeps its own copy so it never imports
+    from the database layer."""
+
+    MATERIAL = "material"
+    LABOR = "labor"

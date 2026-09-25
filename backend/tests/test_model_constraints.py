@@ -8,6 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import timedelta
 from decimal import Decimal
+from typing import Any
 
 import psycopg
 import pytest
@@ -27,7 +28,7 @@ from app.models import (
     TradeTemplate,
     User,
 )
-from app.models.enums import PaymentKind, QuoteStatus, UserRole
+from app.models.enums import LineItemKind, PaymentKind, QuoteStatus, UserRole
 from tests.factories import (
     make_area,
     make_client,
@@ -54,9 +55,14 @@ def expect_violation(session: Session, constraint: str) -> Iterator[None]:
     assert original.diag.constraint_name == constraint
 
 
+# Rate snapshots every quote needs (Milestone 4).
+_RATES: dict[str, Any] = {"labor_rate_cents": 6500, "tax_rate": Decimal("0.05")}
+
+
 def _line_item(quote: Quote, **overrides: object) -> QuoteLineItem:
     fields: dict[str, object] = {
         "quote_id": quote.id,
+        "kind": LineItemKind.MATERIAL,
         "description": "Wall paint",
         "quantity": Decimal("3"),
         "unit": "gallon",
@@ -84,7 +90,7 @@ class TestCrossTenantReferences:
         job_of_b = make_job(db_session, org_b)
 
         with expect_violation(db_session, "fk_quotes_organization_id_job_id_jobs"):
-            db_session.add(Quote(organization_id=org_a.id, job_id=job_of_b.id, version=1))
+            db_session.add(Quote(organization_id=org_a.id, job_id=job_of_b.id, version=1, **_RATES))
 
     def test_payment_cannot_reference_another_orgs_job(self, db_session: Session) -> None:
         org_a, org_b = make_org(db_session, "A"), make_org(db_session, "B")
@@ -130,7 +136,7 @@ class TestQuoteRules:
         make_quote(db_session, org, job, version=1)
 
         with expect_violation(db_session, "uq_quotes_job_id_version"):
-            db_session.add(Quote(organization_id=org.id, job_id=job.id, version=1))
+            db_session.add(Quote(organization_id=org.id, job_id=job.id, version=1, **_RATES))
 
     def test_same_version_number_on_different_jobs_is_fine(self, db_session: Session) -> None:
         org = make_org(db_session)
