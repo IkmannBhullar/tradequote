@@ -269,19 +269,44 @@ def test_payment_amount_must_be_positive(db_session: Session) -> None:
 # ---------------------------------------------------------------------------
 
 
+# Any non-empty value satisfies the column; these tests are about emails.
+_HASH = "$argon2id$placeholder"
+
+
 class TestUsers:
     def test_email_is_unique_across_all_orgs(self, db_session: Session) -> None:
         org_a, org_b = make_org(db_session, "A"), make_org(db_session, "B")
-        db_session.add(User(organization_id=org_a.id, email="bob@x.com", role=UserRole.OWNER))
+        db_session.add(
+            User(
+                organization_id=org_a.id,
+                email="bob@x.com",
+                role=UserRole.OWNER,
+                password_hash=_HASH,
+            )
+        )
         db_session.flush()
 
         with expect_violation(db_session, "uq_users_email"):
-            db_session.add(User(organization_id=org_b.id, email="bob@x.com", role=UserRole.OWNER))
+            db_session.add(
+                User(
+                    organization_id=org_b.id,
+                    email="bob@x.com",
+                    role=UserRole.OWNER,
+                    password_hash=_HASH,
+                )
+            )
 
     def test_email_must_be_stored_lowercase(self, db_session: Session) -> None:
         org = make_org(db_session)
         with expect_violation(db_session, "ck_users_email_lowercase"):
-            db_session.add(User(organization_id=org.id, email="Bob@x.com", role=UserRole.STAFF))
+            db_session.add(
+                User(
+                    organization_id=org.id,
+                    email="Bob@x.com",
+                    role=UserRole.STAFF,
+                    password_hash=_HASH,
+                )
+            )
 
 
 # ---------------------------------------------------------------------------
