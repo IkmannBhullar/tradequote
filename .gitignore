@@ -25,3 +25,6 @@ next-env.d.ts
 .DS_Store
 .idea/
 .vscode/
+
+# Hypothesis example database (local cache of failing inputs)
+.hypothesis/

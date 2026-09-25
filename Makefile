@@ -78,8 +78,11 @@ backend-typecheck:
 
 # Tests include integration tests against the real Postgres, so start it first.
 # They use a separate <db>_test database that they create and migrate themselves.
+# The estimating engine must keep 100% line + branch coverage (CLAUDE.md,
+# Milestone 2); the run fails if it drops.
 backend-test: db-up
-	cd backend && uv run pytest
+	cd backend && uv run pytest --cov=app.estimating --cov-branch \
+		--cov-report=term-missing --cov-fail-under=100
 
 backend-verify: backend-lint backend-typecheck backend-test
 
