@@ -8,8 +8,8 @@ approves it through a public link, and the job is tracked from quote to paid.
 
 Painting is the first trade; other trades are added through data, not code.
 
-> **Status:** Milestone 1 (data model). The database schema, migrations, and a seeded painting
-> template exist; there are no API features yet.
+> **Status:** Milestone 2 (estimating engine). Schema, migrations, a seeded painting template, and
+> a fully tested pure estimating engine exist; there are no API features yet.
 
 ## Stack
 
@@ -79,6 +79,20 @@ Key rules enforced by the database itself (not just application code):
 - Composite foreign keys make cross-organization references impossible (e.g. a job can only point
   at a client in the same organization).
 - CHECK constraints for statuses, non-negative amounts, `total = subtotal + tax`, and more.
+
+## Estimating engine
+
+`backend/app/estimating/` turns measured areas into priced lines. It is **pure**: plain dataclasses
+in, plain dataclasses out, no database or HTTP (a test fails if it ever imports them).
+
+- Material units = quantity × coats × (1 + waste) ÷ coverage, **rounded up** per area.
+- Labor hours = quantity × coats × labor hours per unit, rounded to the **nearest 0.25 h**.
+- Line totals in cents, rounded half-up; tax = subtotal × rate, rounded half-up once.
+- Overrides replace a line's quantity and/or unit price and survive recalculation.
+
+Nothing in the math depends on the trade: square feet, linear feet, and counts use the same
+formulas. Tests include property-based tests (Hypothesis), and `make test` fails if the engine's
+line + branch coverage drops below 100%.
 
 ## Configuration
 
