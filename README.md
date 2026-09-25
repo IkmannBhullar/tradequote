@@ -8,8 +8,8 @@ approves it through a public link, and the job is tracked from quote to paid.
 
 Painting is the first trade; other trades are added through data, not code.
 
-> **Status:** Milestone 2 (estimating engine). Schema, migrations, a seeded painting template, and
-> a fully tested pure estimating engine exist; there are no API features yet.
+> **Status:** Milestone 3 (auth + tenancy). Sign-up, login, and `/me` work; every request is
+> scoped to the caller's organization. Clients/jobs/quotes endpoints come next.
 
 ## Stack
 
@@ -94,9 +94,36 @@ Nothing in the math depends on the trade: square feet, linear feet, and counts u
 formulas. Tests include property-based tests (Hypothesis), and `make test` fails if the engine's
 line + branch coverage drops below 100%.
 
+## Authentication
+
+Email + password, with our own JWTs (no external auth provider).
+
+```bash
+# Sign up: creates an organization with you as owner, returns a token
+curl -X POST localhost:8000/auth/signup -H 'content-type: application/json' \
+  -d '{"organization_name":"KBS Painting","email":"you@example.com","password":"at least 12 chars"}'
+
+# Log in: returns a fresh token (valid ACCESS_TOKEN_TTL_MINUTES, default 60)
+curl -X POST localhost:8000/auth/login -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"at least 12 chars"}'
+
+# Use it
+curl localhost:8000/me -H "Authorization: Bearer <access_token>"
+```
+
+In Swagger UI (http://localhost:8000/docs), click **Authorize** and paste the token.
+
+- Passwords are hashed with Argon2id; tokens are HS256 JWTs signed with `JWT_SECRET`.
+- The organization is always loaded from the authenticated user's database row, never taken from
+  the request. Tenant-owned data is read and written through `TenantRepository`, which filters
+  every query by that organization; tests prove one org can't reach another's data.
+- Not built yet (needed before onboarding customers beyond KBS): password reset, email
+  verification, login rate limiting, refresh tokens.
+
 ## Configuration
 
-All configuration comes from environment variables (see [`.env.example`](.env.example)). Locally,
+All configuration comes from environment variables (see [`.env.example`](.env.example)), including
+`JWT_SECRET`, which must be at least 32 characters and should be generated per environment. Locally,
 they're read from a git-ignored `.env` in the repo root; in CI and production, they're set
 directly in the environment.
 
