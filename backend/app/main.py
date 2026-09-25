@@ -5,7 +5,7 @@ Run locally with:  uv run uvicorn app.main:app --reload
 
 from fastapi import FastAPI
 
-from app.api import auth, health, me
+from app.api import auth, clients, health, jobs, me, organization, quotes, templates
 from app.api.errors import register_error_handlers
 
 
@@ -21,6 +21,11 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(me.router)
+    app.include_router(organization.router)
+    app.include_router(templates.router)
+    app.include_router(clients.router)
+    app.include_router(jobs.router)
+    app.include_router(quotes.router)
     return app
 
 

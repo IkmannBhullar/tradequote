@@ -32,8 +32,17 @@ def get_engine() -> Engine:
 
 
 @lru_cache
-def _session_factory() -> sessionmaker[Session]:
-    return sessionmaker(bind=get_engine(), autoflush=False, expire_on_commit=False)
+def get_session_factory() -> sessionmaker[Session]:
+    """The one place session behavior is configured, for the app AND tests.
+
+    SQLAlchemy's defaults, on purpose:
+    - expire_on_commit=True: after a commit, objects are re-read from the
+      database on next access, so API responses always show what was actually
+      stored (e.g. NUMERIC(12,3) turns Decimal("3") into 3.000). With False,
+      a response could show in-memory values a later GET wouldn't match.
+    - autoflush=True: queries first send pending changes, so they see them.
+    """
+    return sessionmaker(bind=get_engine())
 
 
 def get_db_session() -> Iterator[Session]:
@@ -43,5 +52,5 @@ def get_db_session() -> Iterator[Session]:
     `yield` when the request starts and the cleanup (the `with` block exit)
     after the response is sent, even if the handler raised an exception.
     """
-    with _session_factory()() as session:
+    with get_session_factory()() as session:
         yield session
