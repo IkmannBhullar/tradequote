@@ -5,7 +5,8 @@ Run locally with:  uv run uvicorn app.main:app --reload
 
 from fastapi import FastAPI
 
-from app.api import health
+from app.api import auth, health, me
+from app.api.errors import register_error_handlers
 
 
 def create_app() -> FastAPI:
@@ -16,7 +17,10 @@ def create_app() -> FastAPI:
     every new router gets registered here.
     """
     app = FastAPI(title="TradeQuote API", version="0.1.0")
+    register_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(auth.router)
+    app.include_router(me.router)
     return app
 
 
