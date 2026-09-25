@@ -1,0 +1,70 @@
+# Continuous Integration: runs the same `make` targets you run locally, on
+# every push to main and every pull request. If it's red, don't merge.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# If you push again while a run for the same branch is still going, cancel the
+# old run. Its result would be stale anyway.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: CI only needs to read the code.
+permissions:
+  contents: read
+
+jobs:
+  # Backend and frontend run as separate jobs, so they run in parallel and a
+  # failure clearly points at one side.
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      # CI has no .env file; config comes from env vars, same as production.
+      # Postgres is started by `make db-up` (docker compose), on host port 5433.
+      DATABASE_URL: postgresql+psycopg://tradequote:tradequote@localhost:5433/tradequote
+      ENVIRONMENT: test
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      # --locked fails if uv.lock is out of date with pyproject.toml, so a
+      # forgotten lockfile update is caught here instead of drifting silently.
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --locked
+
+      - name: Lint, type-check, test
+        run: make backend-verify
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint and type-check
+        run: make frontend-verify
+
+      # A production build catches errors lint/tsc can't (e.g. a page that
+      # fails to prerender). Too slow for every local `make verify`, fine here.
+      - name: Build
+        working-directory: frontend
+        run: npm run build
