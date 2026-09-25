@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "TradeQuote API"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "alembic>=1.20.0",
     "fastapi>=0.141.1",
     "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.15.0",
@@ -31,6 +32,12 @@ target-version = "py312"
 # sorting, B bugbear (likely bugs), UP modern-syntax upgrades, SIM
 # simplifications, N naming, RUF ruff-specific checks.
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "N", "RUF"]
+
+[tool.ruff.lint.isort]
+# Our backend/alembic/ *folder* would otherwise make ruff think the `alembic`
+# *package* is our own code, and sort its imports inconsistently.
+known-first-party = ["app", "tests"]
+known-third-party = ["alembic"]
 
 # ---------------------------------------------------------------------------
 # Mypy: static type checking. `strict` means every function must be fully
