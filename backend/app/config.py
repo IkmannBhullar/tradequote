@@ -12,6 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The repo-root `.env` (one level above /backend). We compute an absolute path
@@ -34,6 +35,14 @@ class Settings(BaseSettings):
     # not a silent connection to some unexpected database.
     database_url: str
     environment: Literal["local", "test", "production"] = "local"
+
+    # Signs and verifies access tokens (HS256). Anyone holding it can mint a
+    # token for any user, so it's a secret: env var only, never committed.
+    # 32+ chars because a short HMAC key can be brute-forced offline from a
+    # single captured token.
+    jwt_secret: str = Field(min_length=32)
+    # Short-lived by design: a stolen token stops working within the hour.
+    access_token_ttl_minutes: int = Field(default=60, gt=0, le=24 * 60)
 
 
 @lru_cache

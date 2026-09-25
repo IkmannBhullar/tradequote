@@ -18,6 +18,11 @@ from app.config import get_settings
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
+# A fixed, test-only signing secret. Set BEFORE the first get_settings() call:
+# CI has no .env, and Settings refuses to load without JWT_SECRET.
+TEST_JWT_SECRET = "test-only-jwt-secret-not-used-anywhere-else-0123456789"
+os.environ["JWT_SECRET"] = TEST_JWT_SECRET
+
 
 def _derive_test_url() -> URL:
     dev_url = make_url(get_settings().database_url)
