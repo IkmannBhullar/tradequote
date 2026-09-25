@@ -7,7 +7,8 @@
 # line that needs a folder starts with `cd backend &&`.
 # `.PHONY` marks targets that are commands, not files Make should look for.
 
-.PHONY: help install env db-up db-down db-reset dev dev-backend dev-frontend \
+.PHONY: help install env db-up db-down db-reset migrate migration seed \
+        dev dev-backend dev-frontend \
         lint typecheck test format verify \
         backend-lint backend-typecheck backend-test backend-verify \
         frontend-lint frontend-typecheck frontend-verify
@@ -39,11 +40,24 @@ db-down: ## Stop Postgres (data is kept)
 db-reset: ## Stop Postgres and DELETE its data volume
 	docker compose down -v
 
+migrate: db-up ## Apply all pending migrations
+	cd backend && uv run alembic upgrade head
+
+# Usage: make migration name="add notes to clients"
+# Always read the generated file before committing: autogenerate is a draft.
+migration: db-up ## Autogenerate a migration from model changes
+	@test -n "$(name)" || (echo 'Usage: make migration name="describe the change"' && exit 1)
+	cd backend && uv run alembic upgrade head
+	cd backend && uv run alembic revision --autogenerate -m "$(name)"
+
+seed: migrate ## Load system trade templates (safe to re-run)
+	cd backend && uv run python -m app.seed
+
 # ---------------------------------------------------------------------------
 # Running the app
 # ---------------------------------------------------------------------------
 # `-j2` runs both dev servers in parallel; Ctrl-C stops both.
-dev: db-up ## Run Postgres + API (:8000) + web app (:3000)
+dev: migrate ## Run Postgres + API (:8000) + web app (:3000)
 	$(MAKE) -j2 dev-backend dev-frontend
 
 dev-backend: ## Run only the API with auto-reload
@@ -60,9 +74,10 @@ backend-lint:
 	cd backend && uv run ruff format --check .
 
 backend-typecheck:
-	cd backend && uv run mypy app tests
+	cd backend && uv run mypy app tests alembic
 
 # Tests include integration tests against the real Postgres, so start it first.
+# They use a separate <db>_test database that they create and migrate themselves.
 backend-test: db-up
 	cd backend && uv run pytest
 

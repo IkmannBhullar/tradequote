@@ -8,7 +8,8 @@ approves it through a public link, and the job is tracked from quote to paid.
 
 Painting is the first trade; other trades are added through data, not code.
 
-> **Status:** Milestone 0 (scaffold). The app runs and is fully checked, but has no features yet.
+> **Status:** Milestone 1 (data model). The database schema, migrations, and a seeded painting
+> template exist; there are no API features yet.
 
 ## Stack
 
@@ -30,7 +31,8 @@ Painting is the first trade; other trades are added through data, not code.
 
 ```bash
 make install   # creates .env from .env.example, installs backend + frontend deps
-make dev       # starts Postgres, the API on :8000, and the web app on :3000
+make seed      # starts Postgres, applies migrations, loads the default painting template
+make dev       # migrates, then runs the API on :8000 and the web app on :3000
 ```
 
 Then open:
@@ -53,8 +55,30 @@ Run `make` to list everything. The important ones:
 | `make verify`   | Lint + type-check + tests. This is what CI runs; keep it green. |
 | `make test`     | Backend tests (starts Postgres first)                          |
 | `make format`   | Auto-format backend code                                       |
+| `make migrate`  | Apply pending database migrations                              |
+| `make migration name="..."` | Autogenerate a migration after changing models     |
+| `make seed`     | Load system trade templates (safe to re-run)                   |
 | `make db-down`  | Stop Postgres (keeps data)                                     |
 | `make db-reset` | Stop Postgres and delete its data                              |
+
+## Database
+
+- **Schema changes go through Alembic, always.** Change a model in `backend/app/models/`, run
+  `make migration name="what changed"`, then *read* the generated file in
+  `backend/alembic/versions/` before committing: autogenerate is a first draft. Never edit a
+  migration that has already been applied anywhere; write a new one.
+- A test (`test_models_match_migrations`) fails if models and migrations drift apart.
+- Tests use a separate `<db>_test` database that they recreate and migrate on every run, and each
+  test runs inside a transaction that is rolled back, so tests never touch your `make dev` data.
+- `make seed` loads the system-default "Interior Painting" template. **Its numbers are
+  placeholders** until real coverage, labor, and pricing figures come from KBS Painting.
+
+Key rules enforced by the database itself (not just application code):
+
+- Money is `BIGINT` cents; rates and quantities are exact `NUMERIC`, never floats.
+- Composite foreign keys make cross-organization references impossible (e.g. a job can only point
+  at a client in the same organization).
+- CHECK constraints for statuses, non-negative amounts, `total = subtotal + tax`, and more.
 
 ## Configuration
 
