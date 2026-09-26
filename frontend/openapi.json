@@ -1,6 +1,28 @@
 {
   "components": {
     "schemas": {
+      "ApproveRequest": {
+        "properties": {
+          "accept_terms": {
+            "const": true,
+            "description": "The client ticked 'I agree'",
+            "title": "Accept Terms",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "accept_terms"
+        ],
+        "title": "ApproveRequest",
+        "type": "object"
+      },
       "AreaCreate": {
         "properties": {
           "coats": {
@@ -371,6 +393,33 @@
           "role"
         ],
         "title": "CurrentUserOut",
+        "type": "object"
+      },
+      "DeclineRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Name",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "DeclineRequest",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -893,6 +942,197 @@
         "title": "Page[JobOut]",
         "type": "object"
       },
+      "PublicLineOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "total_cents": {
+            "title": "Total Cents",
+            "type": "integer"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "unit_price_cents": {
+            "title": "Unit Price Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit",
+          "unit_price_cents",
+          "total_cents"
+        ],
+        "title": "PublicLineOut",
+        "type": "object"
+      },
+      "PublicQuoteOut": {
+        "properties": {
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "approved_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By Name"
+          },
+          "can_decide": {
+            "title": "Can Decide",
+            "type": "boolean"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "declined_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declined At"
+          },
+          "declined_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declined By Name"
+          },
+          "deposit_required_cents": {
+            "title": "Deposit Required Cents",
+            "type": "integer"
+          },
+          "is_latest_version": {
+            "title": "Is Latest Version",
+            "type": "boolean"
+          },
+          "job_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Address"
+          },
+          "job_title": {
+            "title": "Job Title",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PublicLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "link_expires_at": {
+            "format": "date-time",
+            "title": "Link Expires At",
+            "type": "string"
+          },
+          "organization_name": {
+            "title": "Organization Name",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/QuoteStatus"
+          },
+          "subtotal_cents": {
+            "title": "Subtotal Cents",
+            "type": "integer"
+          },
+          "tax_cents": {
+            "title": "Tax Cents",
+            "type": "integer"
+          },
+          "tax_rate": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Rate",
+            "type": "string"
+          },
+          "total_cents": {
+            "title": "Total Cents",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization_name",
+          "client_name",
+          "job_title",
+          "job_address",
+          "version",
+          "status",
+          "lines",
+          "subtotal_cents",
+          "tax_rate",
+          "tax_cents",
+          "total_cents",
+          "deposit_required_cents",
+          "sent_at",
+          "approved_at",
+          "approved_by_name",
+          "declined_at",
+          "declined_by_name",
+          "link_expires_at",
+          "is_latest_version",
+          "can_decide"
+        ],
+        "title": "PublicQuoteOut",
+        "type": "object"
+      },
       "QuoteOut": {
         "properties": {
           "approved_at": {
@@ -930,6 +1170,40 @@
             "title": "Created At",
             "type": "string"
           },
+          "decline_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decline Reason"
+          },
+          "declined_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declined At"
+          },
+          "declined_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declined By Name"
+          },
           "deposit_required_cents": {
             "title": "Deposit Required Cents",
             "type": "integer"
@@ -955,6 +1229,18 @@
             "title": "Line Items",
             "type": "array"
           },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
           "status": {
             "$ref": "#/components/schemas/QuoteStatus"
           },
@@ -970,6 +1256,18 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Tax Rate",
             "type": "string"
+          },
+          "token_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Expires At"
           },
           "total_cents": {
             "title": "Total Cents",
@@ -992,8 +1290,13 @@
           "created_at",
           "labor_rate_cents",
           "tax_rate",
+          "sent_at",
+          "token_expires_at",
           "approved_at",
           "approved_by_name",
+          "declined_at",
+          "declined_by_name",
+          "decline_reason",
           "areas",
           "line_items"
         ],
@@ -1104,6 +1407,42 @@
           "database"
         ],
         "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "SendQuoteResponse": {
+        "properties": {
+          "link": {
+            "$ref": "#/components/schemas/ShareLinkOut"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/QuoteOut"
+          }
+        },
+        "required": [
+          "quote",
+          "link"
+        ],
+        "title": "SendQuoteResponse",
+        "type": "object"
+      },
+      "ShareLinkOut": {
+        "description": "The raw link token. Returned only at creation: the server keeps just\nits hash, so it can't be shown again (make a new link instead).",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expires_at"
+        ],
+        "title": "ShareLinkOut",
         "type": "object"
       },
       "SignupRequest": {
@@ -2135,6 +2474,198 @@
         ]
       }
     },
+    "/public/quote": {
+      "get": {
+        "operationId": "view_quote_public_quote_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Quote-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "title": "X-Quote-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicQuoteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "View Quote",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/public/quote/approve": {
+      "post": {
+        "operationId": "approve_public_quote_approve_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Quote-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "title": "X-Quote-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicQuoteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/public/quote/decline": {
+      "post": {
+        "operationId": "decline_public_quote_decline_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Quote-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "title": "X-Quote-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicQuoteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decline",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/public/quote/pdf": {
+      "get": {
+        "operationId": "quote_pdf_public_quote_pdf_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Quote-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "title": "X-Quote-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {}
+            },
+            "description": "The quote as a PDF"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quote Pdf",
+        "tags": [
+          "public"
+        ]
+      }
+    },
     "/quotes/{quote_id}": {
       "get": {
         "operationId": "get_quote_quotes__quote_id__get",
@@ -2545,6 +3076,50 @@
         ]
       }
     },
+    "/quotes/{quote_id}/pdf": {
+      "get": {
+        "operationId": "quote_pdf_quotes__quote_id__pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quote_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quote Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {}
+            },
+            "description": "The quote as a PDF"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quote Pdf",
+        "tags": [
+          "quotes"
+        ]
+      }
+    },
     "/quotes/{quote_id}/refresh-rates": {
       "post": {
         "description": "Pull current organization and template rates into this draft.",
@@ -2638,6 +3213,104 @@
           }
         ],
         "summary": "Create Revision",
+        "tags": [
+          "quotes"
+        ]
+      }
+    },
+    "/quotes/{quote_id}/send": {
+      "post": {
+        "description": "Freeze the draft and create the client's link (shown this once).",
+        "operationId": "send_quote_quotes__quote_id__send_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quote_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quote Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendQuoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send Quote",
+        "tags": [
+          "quotes"
+        ]
+      }
+    },
+    "/quotes/{quote_id}/share-link": {
+      "post": {
+        "description": "A new client link for a sent quote. The previous link stops working.",
+        "operationId": "regenerate_link_quotes__quote_id__share_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quote_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quote Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Regenerate Link",
         "tags": [
           "quotes"
         ]

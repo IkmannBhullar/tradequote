@@ -5,7 +5,8 @@ import { type NextRequest, NextResponse } from "next/server";
 // at all? The real check happens on every API call, where FastAPI verifies
 // the token; an expired or forged cookie gets past here but fails there.
 const SESSION_COOKIE = "tq_session"; // same name as lib/session.ts
-const PUBLIC_PATHS = ["/login", "/signup", "/logout"];
+// /q/<token>: a client's quote link. No login; the token is the credential.
+const PUBLIC_PATHS = ["/login", "/signup", "/logout", "/q"];
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;

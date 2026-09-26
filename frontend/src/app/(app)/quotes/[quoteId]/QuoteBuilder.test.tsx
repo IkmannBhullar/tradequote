@@ -45,8 +45,13 @@ function makeQuote(overrides: Partial<Quote> = {}): Quote {
     deposit_required_cents: 0,
     labor_rate_cents: 6500,
     tax_rate: "0.05000",
+    sent_at: null,
+    token_expires_at: null,
     approved_at: null,
     approved_by_name: null,
+    declined_at: null,
+    declined_by_name: null,
+    decline_reason: null,
     created_at: "2026-09-25T00:00:00Z",
     areas: [],
     line_items: [],
@@ -106,6 +111,8 @@ const PRICED = makeQuote({
   ],
 });
 
+const LINK = { url: "http://localhost:3000/q/secret-token", expiresAt: "2026-10-25T15:00:00Z" };
+
 const ok = (data: Quote): Promise<ActionResult<Quote>> => Promise.resolve({ ok: true, data });
 
 function fakeActions(): QuoteActions {
@@ -118,6 +125,16 @@ function fakeActions(): QuoteActions {
     updateDeposit: vi.fn(() => ok(PRICED)),
     refreshRates: vi.fn(() => ok(PRICED)),
     createRevision: vi.fn(() => ok(makeQuote({ id: "quote-2", version: 2 }))),
+    sendQuote: vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        data: {
+          quote: { ...PRICED, status: "sent" as const, sent_at: "2026-09-25T15:00:00Z", token_expires_at: LINK.expiresAt },
+          link: LINK,
+        },
+      }),
+    ),
+    newShareLink: vi.fn(() => Promise.resolve({ ok: true as const, data: { ...LINK, url: "http://localhost:3000/q/new-token" } })),
   };
 }
 
@@ -128,7 +145,11 @@ function renderBuilder(quote: Quote, actions = fakeActions()) {
 
 const total = () => screen.getByTestId("total");
 
-beforeEach(() => push.mockReset());
+beforeEach(() => {
+  push.mockReset();
+  // The builder asks "are you sure?" before sending; answer yes by default.
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+});
 
 // --- Tests ------------------------------------------------------------------
 
@@ -215,7 +236,7 @@ describe("QuoteBuilder", () => {
   it("is read-only once sent, and offers a revision instead", async () => {
     const { actions, user } = renderBuilder({ ...PRICED, status: "sent" });
 
-    expect(screen.getByText(/can no longer be edited/)).toBeInTheDocument();
+    expect(screen.getByText(/can't be edited/)).toBeInTheDocument();
     expect(screen.getByLabelText("Quantity of Living room walls")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Add area" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Override" })).not.toBeInTheDocument();
@@ -223,5 +244,39 @@ describe("QuoteBuilder", () => {
     await user.click(screen.getByRole("button", { name: "Create revision" }));
     expect(actions.createRevision).toHaveBeenCalledWith("quote-1");
     expect(push).toHaveBeenCalledWith("/quotes/quote-2");
+  });
+
+  it("sends the quote and shows the client link once", async () => {
+    const { actions, user } = renderBuilder(PRICED);
+
+    await user.click(screen.getByRole("button", { name: "Send to client" }));
+
+    expect(actions.sendQuote).toHaveBeenCalledWith("quote-1");
+    expect(await screen.findByLabelText("Client link")).toHaveValue("http://localhost:3000/q/secret-token");
+    expect(screen.getByText(/only shown once/)).toBeInTheDocument();
+    // Now sent: read-only, with a way to issue a new link.
+    expect(screen.queryByRole("button", { name: "Send to client" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New client link" })).toBeInTheDocument();
+  });
+
+  it("does nothing if the user cancels sending", async () => {
+    vi.mocked(window.confirm).mockReturnValue(false);
+    const { actions, user } = renderBuilder(PRICED);
+
+    await user.click(screen.getByRole("button", { name: "Send to client" }));
+
+    expect(actions.sendQuote).not.toHaveBeenCalled();
+  });
+
+  it("can't send an empty quote", () => {
+    renderBuilder(makeQuote());
+    expect(screen.getByRole("button", { name: "Send to client" })).toBeDisabled();
+  });
+
+  it("shows who approved the quote", () => {
+    renderBuilder({ ...PRICED, status: "approved", sent_at: "2026-09-25T15:00:00Z", approved_at: "2026-09-26T15:00:00Z", approved_by_name: "Jane Homeowner" });
+    expect(screen.getByText("Jane Homeowner")).toBeInTheDocument();
+    expect(screen.getByText(/Approved by/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download PDF" })).toHaveAttribute("href", "/quotes/quote-1/pdf");
   });
 });

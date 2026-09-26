@@ -212,6 +212,74 @@ export interface paths {
         patch: operations["update_organization_organization_patch"];
         trace?: never;
     };
+    "/public/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** View Quote */
+        get: operations["view_quote_public_quote_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/quote/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve */
+        post: operations["approve_public_quote_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/quote/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline */
+        post: operations["decline_public_quote_decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/quote/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quote Pdf */
+        get: operations["quote_pdf_public_quote_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/quotes/{quote_id}": {
         parameters: {
             query?: never;
@@ -283,6 +351,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/quotes/{quote_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quote Pdf */
+        get: operations["quote_pdf_quotes__quote_id__pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/quotes/{quote_id}/refresh-rates": {
         parameters: {
             query?: never;
@@ -323,6 +408,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/quotes/{quote_id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Quote
+         * @description Freeze the draft and create the client's link (shown this once).
+         */
+        post: operations["send_quote_quotes__quote_id__send_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/quotes/{quote_id}/share-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate Link
+         * @description A new client link for a sent quote. The previous link stops working.
+         */
+        post: operations["regenerate_link_quotes__quote_id__share_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/templates": {
         parameters: {
             query?: never;
@@ -347,6 +472,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ApproveRequest */
+        ApproveRequest: {
+            /**
+             * Accept Terms
+             * @description The client ticked 'I agree'
+             * @constant
+             */
+            accept_terms: true;
+            /** Name */
+            name: string;
+        };
         /** AreaCreate */
         AreaCreate: {
             /** Coats */
@@ -457,6 +593,13 @@ export interface components {
              */
             id: string;
             role: components["schemas"]["UserRole"];
+        };
+        /** DeclineRequest */
+        DeclineRequest: {
+            /** Name */
+            name: string;
+            /** Reason */
+            reason?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -644,6 +787,64 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** PublicLineOut */
+        PublicLineOut: {
+            /** Description */
+            description: string;
+            /** Quantity */
+            quantity: string;
+            /** Total Cents */
+            total_cents: number;
+            /** Unit */
+            unit: string;
+            /** Unit Price Cents */
+            unit_price_cents: number;
+        };
+        /** PublicQuoteOut */
+        PublicQuoteOut: {
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By Name */
+            approved_by_name: string | null;
+            /** Can Decide */
+            can_decide: boolean;
+            /** Client Name */
+            client_name: string;
+            /** Declined At */
+            declined_at: string | null;
+            /** Declined By Name */
+            declined_by_name: string | null;
+            /** Deposit Required Cents */
+            deposit_required_cents: number;
+            /** Is Latest Version */
+            is_latest_version: boolean;
+            /** Job Address */
+            job_address: string | null;
+            /** Job Title */
+            job_title: string;
+            /** Lines */
+            lines: components["schemas"]["PublicLineOut"][];
+            /**
+             * Link Expires At
+             * Format: date-time
+             */
+            link_expires_at: string;
+            /** Organization Name */
+            organization_name: string;
+            /** Sent At */
+            sent_at: string | null;
+            status: components["schemas"]["QuoteStatus"];
+            /** Subtotal Cents */
+            subtotal_cents: number;
+            /** Tax Cents */
+            tax_cents: number;
+            /** Tax Rate */
+            tax_rate: string;
+            /** Total Cents */
+            total_cents: number;
+            /** Version */
+            version: number;
+        };
         /** QuoteOut */
         QuoteOut: {
             /** Approved At */
@@ -657,6 +858,12 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Decline Reason */
+            decline_reason: string | null;
+            /** Declined At */
+            declined_at: string | null;
+            /** Declined By Name */
+            declined_by_name: string | null;
             /** Deposit Required Cents */
             deposit_required_cents: number;
             /**
@@ -673,6 +880,8 @@ export interface components {
             labor_rate_cents: number;
             /** Line Items */
             line_items: components["schemas"]["LineItemOut"][];
+            /** Sent At */
+            sent_at: string | null;
             status: components["schemas"]["QuoteStatus"];
             /** Subtotal Cents */
             subtotal_cents: number;
@@ -680,6 +889,8 @@ export interface components {
             tax_cents: number;
             /** Tax Rate */
             tax_rate: string;
+            /** Token Expires At */
+            token_expires_at: string | null;
             /** Total Cents */
             total_cents: number;
             /** Version */
@@ -736,6 +947,25 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "unavailable";
+        };
+        /** SendQuoteResponse */
+        SendQuoteResponse: {
+            link: components["schemas"]["ShareLinkOut"];
+            quote: components["schemas"]["QuoteOut"];
+        };
+        /**
+         * ShareLinkOut
+         * @description The raw link token. Returned only at creation: the server keeps just
+         *     its hash, so it can't be shown again (make a new link instead).
+         */
+        ShareLinkOut: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Token */
+            token: string;
         };
         /** SignupRequest */
         SignupRequest: {
@@ -1360,6 +1590,138 @@ export interface operations {
             };
         };
     };
+    view_quote_public_quote_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Quote-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicQuoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_public_quote_approve_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Quote-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicQuoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_public_quote_decline_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Quote-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicQuoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quote_pdf_public_quote_pdf_get: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Quote-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The quote as a PDF */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_quote_quotes__quote_id__get: {
         parameters: {
             query?: never;
@@ -1597,6 +1959,37 @@ export interface operations {
             };
         };
     };
+    quote_pdf_quotes__quote_id__pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quote_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The quote as a PDF */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     refresh_rates_quotes__quote_id__refresh_rates_post: {
         parameters: {
             query?: never;
@@ -1646,6 +2039,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_quote_quotes__quote_id__send_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quote_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendQuoteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_link_quotes__quote_id__share_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quote_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareLinkOut"];
                 };
             };
             /** @description Validation Error */

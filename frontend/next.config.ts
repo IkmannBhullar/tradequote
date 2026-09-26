@@ -11,6 +11,21 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   outputFileTracingRoot: projectRoot,
   turbopack: { root: projectRoot },
+  // Client quote pages carry a secret token in their URL. Don't let
+  // browsers or proxies cache them, search engines index them, or the URL
+  // leak to other sites through the Referer header.
+  async headers() {
+    return [
+      {
+        source: "/q/:path*",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Cache-Control", value: "private, no-store" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

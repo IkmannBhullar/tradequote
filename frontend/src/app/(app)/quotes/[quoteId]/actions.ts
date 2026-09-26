@@ -8,6 +8,7 @@
 import { api, toActionResult } from "@/lib/api/client";
 import type { ActionResult } from "@/lib/api/errors";
 import type { Quote } from "@/lib/api/types";
+import { appUrl } from "@/lib/config";
 
 export type AreaInput = { template_item_id: string; name: string; quantity: string; coats: number | null };
 export type AreaChanges = { name?: string; quantity?: string; coats?: number };
@@ -65,4 +66,24 @@ export async function refreshRates(quoteId: string): Promise<ActionResult<Quote>
 
 export async function createRevision(quoteId: string): Promise<ActionResult<Quote>> {
   return toActionResult(await (await api()).POST("/quotes/{quote_id}/revisions", quotePath(quoteId)));
+}
+
+export type ShareLink = { url: string; expiresAt: string };
+
+// The server returns only the token; the full client link is built here from
+// this app's configured address. It's shown to the contractor once.
+function shareLink(token: string, expiresAt: string): ShareLink {
+  return { url: `${appUrl()}/q/${token}`, expiresAt };
+}
+
+export async function sendQuote(quoteId: string): Promise<ActionResult<{ quote: Quote; link: ShareLink }>> {
+  const result = toActionResult(await (await api()).POST("/quotes/{quote_id}/send", quotePath(quoteId)));
+  if (!result.ok) return result;
+  return { ok: true, data: { quote: result.data.quote, link: shareLink(result.data.link.token, result.data.link.expires_at) } };
+}
+
+export async function newShareLink(quoteId: string): Promise<ActionResult<ShareLink>> {
+  const result = toActionResult(await (await api()).POST("/quotes/{quote_id}/share-link", quotePath(quoteId)));
+  if (!result.ok) return result;
+  return { ok: true, data: shareLink(result.data.token, result.data.expires_at) };
 }

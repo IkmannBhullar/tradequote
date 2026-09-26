@@ -8,6 +8,7 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useTransition } from "react";
 
+import { LocalDate } from "@/components/LocalDate";
 import { Button, Card, ErrorBanner, Input, StatusBadge } from "@/components/ui";
 import type { ActionResult } from "@/lib/api/errors";
 import type { Area, LineItem, Quote, Template } from "@/lib/api/types";
@@ -19,7 +20,7 @@ import {
   fractionToPercent,
   measureUnit,
 } from "@/lib/money";
-import type { AreaChanges, AreaInput, OverrideInput } from "./actions";
+import type { AreaChanges, AreaInput, OverrideInput, ShareLink } from "./actions";
 
 type Result = Promise<ActionResult<Quote>>;
 
@@ -33,6 +34,8 @@ export interface QuoteActions {
   updateDeposit: (quoteId: string, cents: number) => Result;
   refreshRates: (quoteId: string) => Result;
   createRevision: (quoteId: string) => Result;
+  sendQuote: (quoteId: string) => Promise<ActionResult<{ quote: Quote; link: ShareLink }>>;
+  newShareLink: (quoteId: string) => Promise<ActionResult<ShareLink>>;
 }
 
 export function QuoteBuilder({
@@ -51,6 +54,30 @@ export function QuoteBuilder({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const editable = quote.status === "draft";
+  // The client link, shown only right after it's created (the server keeps
+  // just a hash of it, so it can't be fetched again later).
+  const [link, setLink] = useState<ShareLink | null>(null);
+
+  function send() {
+    if (!window.confirm("Send this quote? After sending it can't be edited; changes need a revision.")) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await actions.sendQuote(quote.id);
+      if (!result.ok) return setError(result.error);
+      setQuote(result.data.quote);
+      setLink(result.data.link);
+    });
+  }
+
+  function makeNewLink() {
+    if (!window.confirm("Create a new client link? The current link will stop working.")) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await actions.newShareLink(quote.id);
+      if (!result.ok) return setError(result.error);
+      setLink(result.data);
+    });
+  }
 
   /** Run an action; on success show the new quote, on failure the error. */
   function run(action: () => Result, onSuccess?: (updated: Quote) => void) {
@@ -73,11 +100,29 @@ export function QuoteBuilder({
         <h1 className="text-2xl font-semibold">Quote v{quote.version}</h1>
         <StatusBadge status={quote.status} />
         {pending ? <span className="text-sm text-zinc-500">Updating…</span> : null}
-        <div className="ml-auto flex gap-2">
-          {editable ? (
-            <Button variant="secondary" disabled={pending} onClick={() => run(() => actions.refreshRates(quote.id))}>
-              Refresh rates
+        <div className="ml-auto flex flex-wrap gap-2">
+          <a
+            href={`/quotes/${quote.id}/pdf`}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex items-center rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          >
+            {editable ? "Preview PDF" : "Download PDF"}
+          </a>
+          {quote.status === "sent" ? (
+            <Button variant="secondary" disabled={pending} onClick={makeNewLink}>
+              New client link
             </Button>
+          ) : null}
+          {editable ? (
+            <>
+              <Button variant="secondary" disabled={pending} onClick={() => run(() => actions.refreshRates(quote.id))}>
+                Refresh rates
+              </Button>
+              <Button disabled={pending || quote.areas.length === 0} onClick={send}>
+                Send to client
+              </Button>
+            </>
           ) : (
             <Button
               disabled={pending}
@@ -94,11 +139,8 @@ export function QuoteBuilder({
         </div>
       </div>
 
-      {!editable ? (
-        <p className="rounded-md bg-zinc-100 px-3 py-2 text-sm dark:bg-zinc-800">
-          This quote is {quote.status} and can no longer be edited. Create a revision to make changes.
-        </p>
-      ) : null}
+      {link ? <SharePanel link={link} /> : null}
+      <StatusBanner quote={quote} />
       <ErrorBanner message={error} />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
@@ -410,4 +452,61 @@ function TotalsCard({ quote, editable, disabled, run, actions }: SectionProps) {
       </form>
     </Card>
   );
+}
+
+// --- Sending and status ------------------------------------------------------
+
+function SharePanel({ link }: { link: ShareLink }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div role="status" className="flex flex-col gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950">
+      <p className="font-medium">Client link ready. Copy it now: for security it&apos;s only shown once.</p>
+      <div className="flex gap-2">
+        <Input readOnly value={link.url} aria-label="Client link" onFocus={(event) => event.target.select()} />
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            await navigator.clipboard.writeText(link.url);
+            setCopied(true);
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
+        </Button>
+      </div>
+      <p className="text-xs text-zinc-600 dark:text-zinc-400">
+        Send it to your client by text or email. It works until <LocalDate value={link.expiresAt} />.
+      </p>
+    </div>
+  );
+}
+
+function StatusBanner({ quote }: { quote: Quote }) {
+  const box = "rounded-md px-3 py-2 text-sm";
+  switch (quote.status) {
+    case "draft":
+      return null;
+    case "sent":
+      return (
+        <p className={`${box} bg-zinc-100 dark:bg-zinc-800`}>
+          Sent{quote.sent_at ? <> on <LocalDate value={quote.sent_at} /></> : null}, waiting for the client.
+          {quote.token_expires_at ? <> The client link works until <LocalDate value={quote.token_expires_at} />.</> : null}{" "}
+          It can&apos;t be edited; create a revision to make changes.
+        </p>
+      );
+    case "approved":
+      return (
+        <p className={`${box} bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-200`}>
+          Approved by <strong>{quote.approved_by_name}</strong>
+          {quote.approved_at ? <> on <LocalDate value={quote.approved_at} /></> : null}.
+        </p>
+      );
+    case "declined":
+      return (
+        <p className={`${box} bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-200`}>
+          Declined by <strong>{quote.declined_by_name}</strong>
+          {quote.declined_at ? <> on <LocalDate value={quote.declined_at} /></> : null}.
+          {quote.decline_reason ? <> Reason: &ldquo;{quote.decline_reason}&rdquo;</> : null} Create a revision to send a new version.
+        </p>
+      );
+  }
 }

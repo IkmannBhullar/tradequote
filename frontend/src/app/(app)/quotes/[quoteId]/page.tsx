@@ -32,6 +32,8 @@ export default async function QuotePage(props: PageProps<"/quotes/[quoteId]">) {
           updateDeposit: quoteActions.updateDeposit,
           refreshRates: quoteActions.refreshRates,
           createRevision: quoteActions.createRevision,
+          sendQuote: quoteActions.sendQuote,
+          newShareLink: quoteActions.newShareLink,
         }}
       />
     </div>
