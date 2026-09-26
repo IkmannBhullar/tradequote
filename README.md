@@ -8,8 +8,9 @@ approves it through a public link, and the job is tracked from quote to paid.
 
 Painting is the first trade; other trades are added through data, not code.
 
-> **Status:** Milestone 5 (frontend). A working web app: sign up, set rates, manage clients, track
-> jobs on a pipeline board, and build quotes with live totals. PDFs and client approval are next.
+> **Status:** Milestone 6 (PDF + client approval). Contractors build a quote, send the client a
+> secure link, and the client views it, downloads a branded PDF, and approves or declines by typing
+> their name; approval moves the job to Approved. Payments are next.
 
 ## Stack
 
@@ -26,6 +27,12 @@ Painting is the first trade; other trades are added through data, not code.
 - [uv](https://docs.astral.sh/uv/) (installs Python 3.12 for you if needed)
 - Node.js 20.9+ (see `.nvmrc`)
 - GNU Make (preinstalled on macOS/Linux)
+- For quote PDFs: [WeasyPrint's system libraries](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html)
+  (Pango, HarfBuzz). Linux: `apt install libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0`.
+  macOS: `brew install pango`, using an Apple Silicon Homebrew in `/opt/homebrew` on M-series Macs
+  (an Intel Homebrew in `/usr/local` installs x86_64 libraries that arm64 Python can't load); you
+  may need `export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib`. Without them, everything else
+  works and PDF tests are skipped with a message; CI always runs them.
 
 ## Getting started
 
@@ -172,6 +179,28 @@ How quotes behave:
 Tests: `make frontend-test` (Vitest: utilities + quote builder with fake actions) and
 `make e2e` (Playwright: a real browser through sign-up → quote → $483.00 against the full stack;
 run `npx playwright install chromium` once first).
+
+## Sending quotes and client approval
+
+1. In the quote builder, **Send to client** freezes the draft and shows a link like
+   `https://<app>/q/<token>` **once**: copy it and send it by text or email. Lost it? **New client
+   link** issues a fresh one and the old one stops working.
+2. The client opens the link (no account needed), sees the quote, downloads the PDF, and
+   **approves** (typed full name + "I agree") or **declines** (with an optional reason).
+3. Approval marks the quote approved and moves the job to **Approved** on the board.
+
+Security (architecture rule 8):
+
+- Tokens are 256-bit random; the database stores only their SHA-256 hash, with a 30-day expiry
+  (`QUOTE_LINK_TTL_DAYS`). Expired links return 410; unknown ones 404.
+- Next.js sends the token to FastAPI in an `X-Quote-Token` header, never the URL path, so it stays
+  out of API access logs. Client pages send `Referrer-Policy: no-referrer`, `noindex`, `no-store`.
+- Public endpoints are rate-limited in Postgres: 60 requests/minute per IP and 10 decisions/hour per
+  link (`PUBLIC_REQUESTS_PER_MINUTE`, `QUOTE_DECISIONS_PER_HOUR`).
+- Only the latest version of a sent, unexpired quote can be approved; the public API exposes only
+  client-facing fields.
+- PDFs are rendered by WeasyPrint from an autoescaped Jinja2 template, with all URL fetching
+  disabled (no file:// reads, no SSRF). Dates print in `DISPLAY_TIMEZONE`.
 
 ## Configuration
 
