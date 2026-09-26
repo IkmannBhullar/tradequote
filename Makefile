@@ -11,7 +11,7 @@
         dev dev-backend dev-frontend \
         lint typecheck test format verify \
         backend-lint backend-typecheck backend-test backend-verify \
-        frontend-lint frontend-typecheck frontend-verify
+        frontend-lint frontend-typecheck frontend-test frontend-verify e2e api-types
 
 # First target = what plain `make` runs.
 help: ## Show this help
@@ -92,11 +92,26 @@ frontend-lint:
 frontend-typecheck:
 	cd frontend && npm run typecheck
 
-frontend-verify: frontend-lint frontend-typecheck
+frontend-test:
+	cd frontend && npm run test
+
+frontend-verify: frontend-lint frontend-typecheck frontend-test
+
+# Full-stack browser test against a production build. Needs Postgres, the
+# latest migrations, and the seeded templates, so it prepares them first.
+e2e: seed ## Run the Playwright end-to-end tests
+	cd frontend && npm run build
+	cd frontend && npm run e2e
+
+# Regenerate the frontend's API types after changing backend endpoints/schemas.
+# CI fails if the committed copies are stale.
+api-types: ## Regenerate frontend API types from the backend's OpenAPI schema
+	cd backend && uv run python -m app.export_openapi > ../frontend/openapi.json
+	cd frontend && npm run gen:api
 
 lint: backend-lint frontend-lint ## Lint + format-check everything
 typecheck: backend-typecheck frontend-typecheck ## Type-check everything (mypy strict, tsc strict)
-test: backend-test ## Run all tests
+test: backend-test frontend-test ## Run all unit/integration tests
 verify: lint typecheck test ## Everything CI checks. Must pass before committing.
 
 format: ## Auto-fix formatting and safe lint issues
