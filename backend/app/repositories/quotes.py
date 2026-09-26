@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from sqlalchemy.orm import selectinload
 
 from app.models import Quote
+from app.models.enums import QuoteStatus
 from app.repositories.base import TenantRepository
 
 
@@ -35,4 +36,14 @@ class QuoteRepository(TenantRepository[Quote]):
     def latest_for_job(self, job_id: uuid.UUID) -> Quote | None:
         return self._session.scalar(
             self._scoped().where(Quote.job_id == job_id).order_by(Quote.version.desc()).limit(1)
+        )
+
+    def latest_approved_for_job(self, job_id: uuid.UUID) -> Quote | None:
+        """The approved quote that sets what the client owes (the newest one,
+        if a revision was approved later)."""
+        return self._session.scalar(
+            self._scoped()
+            .where(Quote.job_id == job_id, Quote.status == QuoteStatus.APPROVED)
+            .order_by(Quote.version.desc())
+            .limit(1)
         )

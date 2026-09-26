@@ -10,12 +10,13 @@ from app.models.enums import JobStatus
 from app.repositories.base import PageResult
 from app.repositories.jobs import JobRepository
 from app.services import clients as client_service
+from app.services import payments as payment_service
 from app.services.context import Tenant
 from app.services.errors import ConflictError, NotFoundError
 
 # Status moves a user may make by hand (the job board). The others are made
-# by the system: quoted -> approved when the client approves a quote
-# (Milestone 6), completed -> paid when payment is recorded (Milestone 7).
+# by the system: quoted -> approved when the client approves a quote, and
+# completed <-> paid by the balance (see services/payments.settle_job_status).
 # One step back is allowed everywhere to fix mistakes.
 MANUAL_TRANSITIONS: dict[JobStatus, frozenset[JobStatus]] = {
     JobStatus.APPROVED: frozenset({JobStatus.SCHEDULED}),
@@ -74,6 +75,8 @@ def update_job(session: Session, tenant: Tenant, job_id: uuid.UUID, changes: dic
         if new_status not in MANUAL_TRANSITIONS.get(job.status, frozenset()):
             raise ConflictError(f"Can't move a job from {job.status} to {new_status}")
         job.status = new_status
+        # Completing a job that's already fully paid makes it "paid" at once.
+        payment_service.settle_job_status(session, tenant.organization_id, job)
     for field, value in changes.items():
         setattr(job, field, value)
     session.commit()

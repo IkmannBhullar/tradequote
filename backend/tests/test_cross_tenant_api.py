@@ -6,14 +6,15 @@ that doesn't exist, so org B can't even learn that the ids are real. Finally,
 org A's data must be unchanged.
 """
 
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
 import pytest
 from sqlalchemy.orm import Session
 
-from app.models import TemplateItem, TradeTemplate
-from app.models.enums import MeasureType
+from app.models import Payment, TemplateItem, TradeTemplate
+from app.models.enums import MeasureType, PaymentKind
 from tests.api_helpers import ApiUser
 
 
@@ -39,6 +40,15 @@ def org_a_data(owner: ApiUser, db_session: Session) -> dict[str, str]:
         )
     )
     db_session.add(template)
+    # And a payment on org A's job (added directly: the quote isn't approved).
+    payment = Payment(
+        organization_id=owner.organization_id,
+        job_id=job["id"],
+        amount_cents=100,
+        kind=PaymentKind.DEPOSIT,
+        received_on=date.today(),
+    )
+    db_session.add(payment)
     db_session.flush()
 
     return {
@@ -48,9 +58,11 @@ def org_a_data(owner: ApiUser, db_session: Session) -> dict[str, str]:
         "area": quote["areas"][0]["id"],
         "line": quote["line_items"][0]["id"],
         "template_item": str(template.items[0].id),
+        "payment": str(payment.id),
     }
 
 
+_NEW_PAYMENT = {"amount_cents": 100, "kind": "final", "received_on": "2026-01-01"}
 _NEW_AREA = {"template_item_id": "{template_item}", "name": "x", "quantity": "1"}
 
 # (method, url template, json body). Bodies are valid, so a 404 can only mean
@@ -72,6 +84,9 @@ ENDPOINTS: list[tuple[str, str, dict[str, Any] | None]] = [
     ("delete", "/quotes/{quote}/areas/{area}", None),
     ("put", "/quotes/{quote}/line-items/{line}/override", {"quantity": "1"}),
     ("delete", "/quotes/{quote}/line-items/{line}/override", None),
+    ("get", "/jobs/{job}/payments", None),
+    ("post", "/jobs/{job}/payments", _NEW_PAYMENT),
+    ("post", "/jobs/{job}/payments/{payment}/void", {"reason": "Not yours"}),
 ]
 
 
@@ -104,6 +119,8 @@ def test_other_org_gets_404_everywhere(
     assert owner.ok("get", f"/quotes/{org_a_data['quote']}") == before
     assert owner.ok("get", f"/clients/{org_a_data['client']}")["name"] == "Jane Homeowner"
     assert owner.ok("get", f"/jobs/{org_a_data['job']}")["title"] == "Repaint living room"
+    payments = owner.ok("get", f"/jobs/{org_a_data['job']}/payments")["payments"]
+    assert [(p["amount_cents"], p["voided_at"]) for p in payments] == [(100, None)]
 
 
 def test_lists_never_include_another_orgs_rows(

@@ -103,7 +103,7 @@ class TestCrossTenantReferences:
                     job_id=job_of_b.id,
                     amount_cents=10_000,
                     kind=PaymentKind.DEPOSIT,
-                    received_at=utc_now(),
+                    received_on=utc_now().date(),
                 )
             )
 
@@ -269,6 +269,22 @@ def test_line_item_amounts_cannot_be_negative(db_session: Session) -> None:
         db_session.add(_line_item(quote, total_cents=-1))
 
 
+def test_voided_payment_needs_a_reason(db_session: Session) -> None:
+    org = make_org(db_session)
+    job = make_job(db_session, org)
+    with expect_violation(db_session, "ck_payments_void_recorded"):
+        db_session.add(
+            Payment(
+                organization_id=org.id,
+                job_id=job.id,
+                amount_cents=100,
+                kind=PaymentKind.FINAL,
+                received_on=utc_now().date(),
+                voided_at=utc_now(),
+            )
+        )
+
+
 def test_payment_amount_must_be_positive(db_session: Session) -> None:
     org = make_org(db_session)
     job = make_job(db_session, org)
@@ -279,7 +295,7 @@ def test_payment_amount_must_be_positive(db_session: Session) -> None:
                 job_id=job.id,
                 amount_cents=0,
                 kind=PaymentKind.FINAL,
-                received_at=utc_now(),
+                received_on=utc_now().date(),
             )
         )
 

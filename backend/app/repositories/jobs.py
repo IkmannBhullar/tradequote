@@ -29,3 +29,12 @@ class JobRepository(TenantRepository[Job]):
         if client_id is not None:
             statement = statement.where(Job.client_id == client_id)
         return self._page(statement.order_by(Job.created_at.desc()), limit, offset)
+
+    def get_for_update(self, job_id: uuid.UUID) -> Job | None:
+        """Fetch and LOCK the job row until the transaction ends.
+
+        SELECT ... FOR UPDATE: a second request that locks the same job waits
+        here. Used when recording payments, so two simultaneous payments
+        can't both see the same balance and together overpay the job.
+        """
+        return self._session.scalar(self._scoped().where(Job.id == job_id).with_for_update(of=Job))

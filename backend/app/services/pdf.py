@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, PackageLoader, StrictUndefined, select_autoescape
 
+from app.services.formatting import format_cents
 from app.services.quote_documents import QuoteDocument
 
 _templates = Environment(
@@ -24,12 +25,6 @@ _templates = Environment(
     # A typo'd variable name fails loudly instead of rendering as blank.
     undefined=StrictUndefined,
 )
-
-
-def format_cents(cents: int) -> str:
-    """48300 -> "$483.00", with integer math only (no floats)."""
-    dollars, remainder = divmod(cents, 100)
-    return f"${dollars:,}.{remainder:02d}"
 
 
 def format_decimal(value: Decimal) -> str:
