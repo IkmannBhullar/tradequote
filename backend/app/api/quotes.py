@@ -5,10 +5,12 @@ a client (the quote builder UI) gets live totals from a single request.
 """
 
 import uuid
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Response, status
 
-from app.api.deps import CurrentTenant, DbSession
+from app.api.deps import AppSettings, CurrentTenant, DbSession
 from app.schemas.quotes import (
     AreaCreate,
     AreaUpdate,
@@ -16,7 +18,10 @@ from app.schemas.quotes import (
     QuoteOut,
     QuoteSummaryOut,
     QuoteUpdate,
+    SendQuoteResponse,
+    ShareLinkOut,
 )
+from app.services import pdf as pdf_service
 from app.services import quotes as quote_service
 
 router = APIRouter(tags=["quotes"])
@@ -141,3 +146,59 @@ def clear_override(
     quote_id: uuid.UUID, line_id: uuid.UUID, tenant: CurrentTenant, session: DbSession
 ) -> QuoteOut:
     return QuoteOut.from_quote(quote_service.clear_override(session, tenant, quote_id, line_id))
+
+
+# --- Sending and PDFs --------------------------------------------------------
+
+
+@router.post("/quotes/{quote_id}/send", response_model=SendQuoteResponse)
+def send_quote(
+    quote_id: uuid.UUID, tenant: CurrentTenant, session: DbSession, settings: AppSettings
+) -> SendQuoteResponse:
+    """Freeze the draft and create the client's link (shown this once)."""
+    quote, link = quote_service.send_quote(
+        session, tenant, quote_id, link_ttl=timedelta(days=settings.quote_link_ttl_days)
+    )
+    return SendQuoteResponse(
+        quote=QuoteOut.from_quote(quote),
+        link=ShareLinkOut(token=link.token, expires_at=link.expires_at),
+    )
+
+
+@router.post("/quotes/{quote_id}/share-link", response_model=ShareLinkOut)
+def regenerate_link(
+    quote_id: uuid.UUID, tenant: CurrentTenant, session: DbSession, settings: AppSettings
+) -> ShareLinkOut:
+    """A new client link for a sent quote. The previous link stops working."""
+    link = quote_service.regenerate_link(
+        session, tenant, quote_id, link_ttl=timedelta(days=settings.quote_link_ttl_days)
+    )
+    return ShareLinkOut(token=link.token, expires_at=link.expires_at)
+
+
+def pdf_response(pdf: bytes, version: int) -> Response:
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            # inline: open in the browser's viewer; the filename is used on save.
+            "Content-Disposition": f'inline; filename="quote-v{version}.pdf"',
+            # Quotes are private: no shared caches.
+            "Cache-Control": "private, no-store",
+        },
+    )
+
+
+@router.get(
+    "/quotes/{quote_id}/pdf",
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}, "description": "The quote as a PDF"}},
+)
+def quote_pdf(
+    quote_id: uuid.UUID, tenant: CurrentTenant, session: DbSession, settings: AppSettings
+) -> Response:
+    document = quote_service.get_document(session, tenant, quote_id)
+    pdf = pdf_service.render_quote_pdf(
+        document, generated_at=datetime.now(UTC), timezone=ZoneInfo(settings.display_timezone)
+    )
+    return pdf_response(pdf, document.version)

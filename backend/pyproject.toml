@@ -7,12 +7,15 @@ dependencies = [
     "alembic>=1.20.0",
     "email-validator>=2.3.0",
     "fastapi>=0.141.1",
+    "jinja2>=3.1.6",
     "psycopg[binary]>=3.3.6",
     "pwdlib[argon2]>=0.3.1",
     "pydantic-settings>=2.15.0",
     "pyjwt>=2.15.0",
     "sqlalchemy>=2.1.1",
+    "tzdata>=2026.4",
     "uvicorn[standard]>=0.54.0",
+    "weasyprint>=70.0",
 ]
 
 [dependency-groups]
@@ -20,6 +23,7 @@ dev = [
     "httpx2>=2.13.1",
     "hypothesis>=6.168.1",
     "mypy>=2.3.1",
+    "pypdf>=6.19.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.9",
@@ -54,6 +58,12 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 
+# WeasyPrint ships no type hints. Scope the exception to that one library;
+# everything else stays strictly checked.
+[[tool.mypy.overrides]]
+module = ["weasyprint", "weasyprint.*"]
+ignore_missing_imports = true
+
 # ---------------------------------------------------------------------------
 # Pytest
 # ---------------------------------------------------------------------------
@@ -61,5 +71,9 @@ plugins = ["pydantic.mypy"]
 testpaths = ["tests"]
 # Fail on unknown markers and treat warnings as errors so deprecations get
 # noticed early instead of piling up silently.
-addopts = "--strict-markers"
+# -rs: always print WHY a test was skipped, so skips can't go unnoticed.
+addopts = "--strict-markers -rs"
 filterwarnings = ["error"]
+markers = [
+    "pdf: renders real PDFs; needs WeasyPrint's system libraries (Pango)",
+]

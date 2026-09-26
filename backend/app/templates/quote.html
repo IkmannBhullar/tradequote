@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quote v{{ doc.version }} — {{ doc.organization_name }}</title>
+<style>
+  /* Print layout: US Letter, with page numbers in the footer. */
+  @page {
+    size: Letter;
+    margin: 18mm 16mm 20mm;
+    /* Margin boxes don't inherit the body's font, so set it explicitly. */
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: sans-serif; font-size: 8pt; color: #71717a; }
+    @bottom-left { content: "{{ doc.organization_name }} · Quote v{{ doc.version }}"; font-family: sans-serif; font-size: 8pt; color: #71717a; }
+  }
+  body { font-family: sans-serif; font-size: 10pt; color: #18181b; }
+  .brand { border-bottom: 3px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .brand h1 { font-size: 20pt; margin: 0; color: #1e3a8a; }
+  .brand .label { font-size: 14pt; letter-spacing: 2px; color: #52525b; }
+  .meta { display: flex; justify-content: space-between; margin-bottom: 18px; }
+  .meta h2 { font-size: 8pt; text-transform: uppercase; color: #71717a; margin: 0 0 2px; }
+  .meta p { margin: 0 0 2px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { text-align: left; font-size: 8pt; text-transform: uppercase; color: #71717a; border-bottom: 1px solid #d4d4d8; padding: 4px 6px; }
+  tbody td { border-bottom: 1px solid #f4f4f5; padding: 6px; vertical-align: top; }
+  .num { text-align: right; white-space: nowrap; }
+  tr { page-break-inside: avoid; }
+  .totals { width: 45%; margin: 14px 0 0 auto; }
+  .totals td { padding: 3px 6px; border: none; }
+  .totals .grand td { border-top: 2px solid #18181b; font-weight: bold; font-size: 12pt; padding-top: 6px; }
+  .deposit { margin-top: 10px; text-align: right; color: #3f3f46; }
+  .status { margin-top: 22px; padding: 10px 12px; border-radius: 4px; }
+  .status.approved { background: #dcfce7; color: #14532d; }
+  .status.declined { background: #fee2e2; color: #7f1d1d; }
+  .terms { margin-top: 24px; font-size: 8pt; color: #71717a; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <h1>{{ doc.organization_name }}</h1>
+    <span class="label">QUOTE</span>
+  </div>
+
+  <div class="meta">
+    <div>
+      <h2>Prepared for</h2>
+      <p><strong>{{ doc.client_name }}</strong></p>
+      <p>{{ doc.job_title }}</p>
+      {% if doc.job_address %}<p>{{ doc.job_address }}</p>{% endif %}
+    </div>
+    <div style="text-align: right">
+      <h2>Quote</h2>
+      <p>Version {{ doc.version }}</p>
+      <p>Date: {{ date(doc.sent_at or generated_at) }}</p>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit price</th><th class="num">Amount</th></tr>
+    </thead>
+    <tbody>
+      {% for line in doc.lines %}
+      <tr>
+        <td>{{ line.description }}</td>
+        <td class="num">{{ line.quantity | decimal }}</td>
+        <td>{{ line.unit }}</td>
+        <td class="num">{{ line.unit_price_cents | cents }}</td>
+        <td class="num">{{ line.total_cents | cents }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tr><td>Subtotal</td><td class="num">{{ doc.subtotal_cents | cents }}</td></tr>
+    <tr><td>Tax ({{ tax_percent }}%)</td><td class="num">{{ doc.tax_cents | cents }}</td></tr>
+    <tr class="grand"><td>Total</td><td class="num">{{ doc.total_cents | cents }}</td></tr>
+  </table>
+  {% if doc.deposit_required_cents %}
+  <p class="deposit">Deposit required to schedule: <strong>{{ doc.deposit_required_cents | cents }}</strong></p>
+  {% endif %}
+
+  {% if doc.status == "approved" %}
+  <div class="status approved">Approved by <strong>{{ doc.approved_by_name }}</strong> on {{ date(doc.approved_at) }}.</div>
+  {% elif doc.status == "declined" %}
+  <div class="status declined">Declined by <strong>{{ doc.declined_by_name }}</strong> on {{ date(doc.declined_at) }}.</div>
+  {% endif %}
+
+  {# Placeholder terms until KBS provides theirs. #}
+  <p class="terms">This quote is based on the measurements listed and is valid for 30 days. Changes to the scope of work may change the price.</p>
+</body>
+</html>

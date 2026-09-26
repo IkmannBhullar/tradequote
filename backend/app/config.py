@@ -11,8 +11,9 @@ This is the ONLY place the app reads configuration. Everything else asks for a
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The repo-root `.env` (one level above /backend). We compute an absolute path
@@ -43,6 +44,27 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(min_length=32)
     # Short-lived by design: a stolen token stops working within the hour.
     access_token_ttl_minutes: int = Field(default=60, gt=0, le=24 * 60)
+
+    # Timezone for dates printed on documents (e.g. "Approved on ..."). Stored
+    # times are UTC; printing them in UTC would show tomorrow's date for an
+    # evening approval in North America. Placeholder until KBS confirms.
+    display_timezone: str = "America/New_York"
+
+    @field_validator("display_timezone")
+    @classmethod
+    def _known_timezone(cls, value: str) -> str:
+        # Fail at startup on a typo, not on the first PDF download.
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as error:
+            raise ValueError(f"unknown timezone {value!r}") from error
+        return value
+
+    # Public quote links (Milestone 6).
+    quote_link_ttl_days: int = Field(default=30, gt=0, le=365)
+    # Rate limits for the no-login public endpoints (rule 8).
+    public_requests_per_minute: int = Field(default=60, gt=0)
+    quote_decisions_per_hour: int = Field(default=10, gt=0)
 
 
 @lru_cache

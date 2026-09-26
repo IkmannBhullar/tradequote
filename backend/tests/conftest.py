@@ -8,6 +8,7 @@ simply by naming it as a function parameter (e.g. `def test_x(client): ...`).
 # app code reads settings.
 from tests.database import TEST_DATABASE_URL, migrate, recreate_database  # isort: skip
 
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -105,3 +106,32 @@ def other_owner(client: TestClient, system_templates: None) -> ApiUser:
     """Owner of a second, unrelated organization: the "attacker" in
     cross-tenant tests."""
     return sign_up(client, "owner@org-b.example.com", "Org B")
+
+
+# ---------------------------------------------------------------------------
+# PDF tests (Milestone 6)
+# ---------------------------------------------------------------------------
+
+
+def _weasyprint_available() -> bool:
+    try:
+        import weasyprint  # noqa: F401
+    except (ImportError, OSError):
+        return False
+    return True
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Skip @pytest.mark.pdf tests when WeasyPrint can't load, LOUDLY.
+
+    Locally that's a machine-setup issue (see README). In CI, REQUIRE_PDF=1
+    turns it into a hard failure, so PDFs can't go untested unnoticed.
+    """
+    if _weasyprint_available():
+        return
+    if os.environ.get("REQUIRE_PDF") == "1":
+        raise pytest.UsageError("REQUIRE_PDF=1 but WeasyPrint's system libraries are missing")
+    skip = pytest.mark.skip(reason="WeasyPrint system libraries (Pango) not installed; see README")
+    for item in items:
+        if "pdf" in item.keywords:
+            item.add_marker(skip)

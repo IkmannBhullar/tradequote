@@ -10,6 +10,8 @@ Rules implemented here:
 """
 
 import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -25,14 +27,16 @@ from app.estimating import (
     LineOverride,
     calculate_estimate,
 )
-from app.models import Quote, QuoteArea, QuoteLineItem, TemplateItem
+from app.models import Organization, Quote, QuoteArea, QuoteLineItem, TemplateItem
 from app.models.enums import LineItemKind, QuoteStatus
 from app.repositories.organizations import OrganizationRepository
 from app.repositories.quotes import QuoteRepository
 from app.repositories.templates import TemplateRepository
+from app.security.links import hash_link_token, new_link_token
 from app.services import jobs as job_service
 from app.services.context import Tenant
 from app.services.errors import ConflictError, InvalidInputError, NotFoundError
+from app.services.quote_documents import QuoteDocument, build_document
 
 _UNIQUE_VERSION_CONSTRAINT = "uq_quotes_job_id_version"
 
@@ -431,3 +435,69 @@ def clear_override(
     line.override_unit_price_cents = None
     line.is_override = False
     return _save(session, quote)
+
+
+# ---------------------------------------------------------------------------
+# Sending, share links, and documents (Milestone 6)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class IssuedLink:
+    """The raw token exists only in this return value: it's shown to the
+    contractor once and never stored (only its hash is)."""
+
+    token: str
+    expires_at: datetime
+
+
+def _issue_link(quote: Quote, ttl: timedelta) -> IssuedLink:
+    token = new_link_token()
+    expires_at = datetime.now(UTC) + ttl
+    # Replacing the hash also invalidates any previous link for this quote.
+    quote.public_token_hash = hash_link_token(token)
+    quote.token_expires_at = expires_at
+    return IssuedLink(token=token, expires_at=expires_at)
+
+
+def _require_latest(session: Session, tenant: Tenant, quote: Quote) -> None:
+    latest = _repo(session, tenant).latest_for_job(quote.job_id)
+    if latest is None or latest.id != quote.id:
+        raise ConflictError("This quote has been replaced by a newer version")
+
+
+def send_quote(
+    session: Session, tenant: Tenant, quote_id: uuid.UUID, *, link_ttl: timedelta
+) -> tuple[Quote, IssuedLink]:
+    """Draft -> sent: freeze the quote and create its client link."""
+    quote = _get_draft(session, tenant, quote_id)
+    if not quote.areas:
+        raise ConflictError("Add at least one area before sending")
+    quote.status = QuoteStatus.SENT
+    quote.sent_at = datetime.now(UTC)
+    link = _issue_link(quote, link_ttl)
+    session.commit()
+    return quote, link
+
+
+def regenerate_link(
+    session: Session, tenant: Tenant, quote_id: uuid.UUID, *, link_ttl: timedelta
+) -> IssuedLink:
+    """A fresh link for a sent quote (e.g. the old one was lost or expired).
+    Only the hash is stored, so the old link can't be shown again; making a
+    new one invalidates it."""
+    quote = get_quote(session, tenant, quote_id)
+    if quote.status is not QuoteStatus.SENT:
+        raise ConflictError(f"Only sent quotes have client links (this one is {quote.status})")
+    _require_latest(session, tenant, quote)
+    link = _issue_link(quote, link_ttl)
+    session.commit()
+    return link
+
+
+def get_document(session: Session, tenant: Tenant, quote_id: uuid.UUID) -> QuoteDocument:
+    """The client-facing view of one of the contractor's own quotes (for PDFs)."""
+    quote = get_quote(session, tenant, quote_id)
+    organization = session.get(Organization, tenant.organization_id)
+    assert organization is not None
+    return build_document(quote, organization)

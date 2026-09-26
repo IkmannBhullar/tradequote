@@ -101,8 +101,14 @@ class QuoteSummaryOut(BaseModel):
 class QuoteOut(QuoteSummaryOut):
     labor_rate_cents: int
     tax_rate: Decimal
+    sent_at: datetime | None
+    # When the current client link stops working (None until sent).
+    token_expires_at: datetime | None
     approved_at: datetime | None
     approved_by_name: str | None
+    declined_at: datetime | None
+    declined_by_name: str | None
+    decline_reason: str | None
     areas: list[AreaOut]
     line_items: list[LineItemOut]
 
@@ -120,3 +126,16 @@ class QuoteOut(QuoteSummaryOut):
             )
         )
         return out
+
+
+class ShareLinkOut(BaseModel):
+    """The raw link token. Returned only at creation: the server keeps just
+    its hash, so it can't be shown again (make a new link instead)."""
+
+    token: str
+    expires_at: datetime
+
+
+class SendQuoteResponse(BaseModel):
+    quote: QuoteOut
+    link: ShareLinkOut
