@@ -115,3 +115,34 @@ test("signed-out visitors are sent to login and returned afterwards", async ({ p
   await page.goto("/clients");
   await expect(page).toHaveURL(/\/login\?next=%2Fclients/);
 });
+
+// Milestone 8: a second trade, added with seed data only, works in the same
+// screens with no code changes.
+test("a flooring quote works in the same screens", async ({ page }) => {
+  await page.goto("/signup");
+  await page.getByLabel("Company name").fill("E2E Flooring");
+  await page.getByLabel("Email", { exact: true }).fill(`e2e-floor-${Date.now()}@example.com`);
+  await page.getByLabel("Password", { exact: true }).fill("correct horse battery staple");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await page.getByLabel("Labor rate ($ per hour)").fill("65");
+  await page.getByLabel("Tax rate (%)").fill("5");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByRole("status")).toHaveText("Saved.");
+
+  await page.getByRole("link", { name: "Clients" }).click();
+  await expect(page.getByRole("heading", { name: "Clients", level: 1 })).toBeVisible();
+  await page.getByLabel("Name", { exact: true }).fill("Sam Floorowner");
+  await page.getByRole("button", { name: "Add client" }).click();
+  await page.getByLabel("Job title").fill("New laminate floor");
+  await page.getByRole("button", { name: "New job" }).click();
+  await page.getByRole("button", { name: "Create quote" }).click();
+  await expect(page.getByRole("heading", { name: "Quote v1" })).toBeVisible();
+
+  // 250 sq ft laminate: 14 boxes x $55 + 10 h x $65 = $1,420.00 + 5% tax.
+  await page.getByRole("combobox").selectOption({ label: "Laminate plank" });
+  await page.getByLabel("Area name").fill("Living room");
+  await page.getByLabel(/^Quantity/).fill("250");
+  await page.getByRole("button", { name: "Add area" }).click();
+  await expect(page.getByTestId("total")).toHaveText("$1,491.00");
+  await expect(page.getByText("14 box")).toBeVisible();
+});

@@ -59,10 +59,17 @@ class ApiUser:
         return result
 
     def template_item_id(self, name: str = "Walls") -> str:
-        """Id of an item in the system 'Interior Painting' template."""
+        """Id of a system template item by name, whatever trade it's in."""
         templates = self.ok("get", "/templates")
-        system = next(t for t in templates if t["organization_id"] is None)
-        return str(next(item["id"] for item in system["items"] if item["name"] == name))
+        return str(
+            next(
+                item["id"]
+                for template in templates
+                if template["organization_id"] is None
+                for item in template["items"]
+                if item["name"] == name
+            )
+        )
 
     def add_area(self, quote_id: str, quantity: str = "420", **fields: Any) -> dict[str, Any]:
         body = {"template_item_id": self.template_item_id(), "name": "Living room walls"}

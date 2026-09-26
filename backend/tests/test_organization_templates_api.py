@@ -64,8 +64,12 @@ class TestTemplates:
         templates = owner.ok("get", "/templates")
 
         system = [t for t in templates if t["organization_id"] is None]
-        assert [(t["trade"], t["name"]) for t in system] == [("painting", "Interior Painting")]
-        walls = next(i for i in system[0]["items"] if i["name"] == "Walls")
+        assert [(t["trade"], t["name"]) for t in system] == [
+            ("flooring", "Flooring"),
+            ("painting", "Interior Painting"),
+        ]
+        painting = next(t for t in system if t["trade"] == "painting")
+        walls = next(i for i in painting["items"] if i["name"] == "Walls")
         assert (walls["measure_type"], walls["coverage_per_material_unit"]) == ("area", "350.000")
 
     def test_own_templates_are_listed_first_and_others_never(
@@ -83,4 +87,5 @@ class TestTemplates:
 
         names = [t["name"] for t in owner.ok("get", "/templates")]
 
-        assert names == ["Mine", "Interior Painting"]
+        # Own templates first, then system ones by trade.
+        assert names == ["Mine", "Flooring", "Interior Painting"]

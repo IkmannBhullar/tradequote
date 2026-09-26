@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models import TemplateItem, TradeTemplate
 from app.models.enums import MeasureType
-from app.seed import INTERIOR_PAINTING, seed_system_templates
+from app.seed import INTERIOR_PAINTING, SYSTEM_TEMPLATES, seed_system_templates
 
 
 def _system_painting_template(session: Session) -> TradeTemplate:
@@ -45,9 +45,11 @@ def test_seed_is_idempotent(db_session: Session) -> None:
 
     seed_system_templates(db_session)
 
-    assert db_session.scalar(select(func.count()).select_from(TradeTemplate)) == 1
-    assert db_session.scalar(select(func.count()).select_from(TemplateItem)) == len(
-        INTERIOR_PAINTING.items
+    assert db_session.scalar(select(func.count()).select_from(TradeTemplate)) == len(
+        SYSTEM_TEMPLATES
+    )
+    assert db_session.scalar(select(func.count()).select_from(TemplateItem)) == sum(
+        len(template.items) for template in SYSTEM_TEMPLATES
     )
     # Same rows updated in place, not deleted and recreated.
     second_ids = {item.name: item.id for item in _system_painting_template(db_session).items}
