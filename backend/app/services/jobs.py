@@ -25,6 +25,12 @@ MANUAL_TRANSITIONS: dict[JobStatus, frozenset[JobStatus]] = {
 }
 
 
+def allowed_transitions(status: JobStatus) -> list[JobStatus]:
+    """Manual moves available from `status`, in pipeline order (for the UI)."""
+    allowed = MANUAL_TRANSITIONS.get(status, frozenset())
+    return [candidate for candidate in JobStatus if candidate in allowed]
+
+
 def _repo(session: Session, tenant: Tenant) -> JobRepository:
     return JobRepository(session, tenant.organization_id)
 

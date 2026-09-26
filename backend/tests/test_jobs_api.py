@@ -104,3 +104,17 @@ def test_setting_the_same_status_is_a_no_op(owner: ApiUser) -> None:
 def test_invalid_updates_are_422(owner: ApiUser, body: dict[str, object]) -> None:
     job = owner.create_job()
     assert owner.patch(f"/jobs/{job['id']}", json=body).status_code == 422
+
+
+def test_response_includes_client_name_and_allowed_moves(
+    owner: ApiUser, db_session: Session
+) -> None:
+    client = owner.create_client("Jane Homeowner")
+    job = owner.create_job(client["id"])
+    assert (job["client_name"], job["allowed_transitions"]) == ("Jane Homeowner", [])
+
+    _set_status(db_session, job["id"], JobStatus.SCHEDULED)
+    listed = owner.ok("get", "/jobs")["items"][0]
+
+    # From "scheduled": back to approved, or forward to in progress.
+    assert listed["allowed_transitions"] == ["approved", "in_progress"]

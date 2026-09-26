@@ -2,6 +2,8 @@
 
 import uuid
 
+from sqlalchemy.orm import selectinload
+
 from app.models import Job
 from app.models.enums import JobStatus
 from app.repositories.base import PageResult, TenantRepository
@@ -19,7 +21,9 @@ class JobRepository(TenantRepository[Job]):
         offset: int,
     ) -> PageResult[Job]:
         # Filters are added on top of _scoped(), never instead of it.
-        statement = self._scoped()
+        # selectinload: one extra query loads every listed job's client,
+        # instead of one query per job card (the N+1 problem).
+        statement = self._scoped().options(selectinload(Job.client))
         if status is not None:
             statement = statement.where(Job.status == status)
         if client_id is not None:

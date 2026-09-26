@@ -1,12 +1,16 @@
 """Job: one piece of work for a client, tracked from quote to paid."""
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKeyConstraint, String, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import TenantScopedModel, str_enum
 from app.models.enums import JobStatus
+
+if TYPE_CHECKING:  # imported only for type checking, avoiding a circular import
+    from app.models.client import Client
 
 
 class Job(TenantScopedModel):
@@ -31,3 +35,14 @@ class Job(TenantScopedModel):
     status: Mapped[JobStatus] = mapped_column(
         str_enum(JobStatus, "job_status"), server_default=JobStatus.QUOTED.value
     )
+
+    # Read-only link to the client, for showing its name. viewonly=True
+    # because the composite foreign key above already manages client_id and
+    # organization_id; a writable relationship would also try to set them.
+    client: Mapped["Client"] = relationship(
+        primaryjoin="foreign(Job.client_id) == Client.id", viewonly=True
+    )
+
+    @property
+    def client_name(self) -> str:
+        return self.client.name

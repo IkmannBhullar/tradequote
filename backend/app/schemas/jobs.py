@@ -33,7 +33,11 @@ class JobOut(BaseModel):
 
     id: uuid.UUID
     client_id: uuid.UUID
+    client_name: str
     title: str
     address: str | None
     status: JobStatus
+    # Status moves the user may make by hand right now. Computed by the
+    # backend so the UI never duplicates the transition rules.
+    allowed_transitions: list[JobStatus] = []
     created_at: datetime
