@@ -6,15 +6,19 @@ import { api, unwrap } from "@/lib/api/client";
 import { formatCents } from "@/lib/money";
 import { createQuote, updateJob } from "../actions";
 import { JobForm } from "./JobForm";
+import { recordPayment, voidPayment } from "./payment-actions";
+import { PaymentsPanel } from "./PaymentsPanel";
 
 export default async function JobPage(props: PageProps<"/jobs/[jobId]">) {
   const { jobId } = await props.params;
   const client = await api();
   const params = { params: { path: { job_id: jobId } } };
-  const [job, quotes] = await Promise.all([
+  const [job, quotes, payments] = await Promise.all([
     client.GET("/jobs/{job_id}", params).then(unwrap),
     client.GET("/jobs/{job_id}/quotes", params).then(unwrap),
+    client.GET("/jobs/{job_id}/payments", params).then(unwrap),
   ]);
+
   const latest = quotes.at(-1);
 
   return (
@@ -61,6 +65,14 @@ export default async function JobPage(props: PageProps<"/jobs/[jobId]">) {
           </table>
         )}
       </Card>
+
+      {/* key: remount with fresh data when the job changes status elsewhere. */}
+      <PaymentsPanel
+        key={`${job.status}-${payments.summary.paid_cents}`}
+        jobId={jobId}
+        initial={payments}
+        actions={{ recordPayment, voidPayment }}
+      />
 
       <Card title="Details">
         <JobForm job={job} action={updateJob.bind(null, jobId)} />

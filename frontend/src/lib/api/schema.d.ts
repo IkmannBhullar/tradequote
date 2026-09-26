@@ -151,6 +151,47 @@ export interface paths {
         patch: operations["update_job_jobs__job_id__patch"];
         trace?: never;
     };
+    "/jobs/{job_id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Payments
+         * @description The job's payments (voided ones included, for the audit trail) and balance.
+         */
+        get: operations["list_payments_jobs__job_id__payments_get"];
+        put?: never;
+        /** Record Payment */
+        post: operations["record_payment_jobs__job_id__payments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/{job_id}/payments/{payment_id}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Void Payment
+         * @description Stop a mistaken payment from counting. It stays in the history.
+         */
+        post: operations["void_payment_jobs__job_id__payments__payment_id__void_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/jobs/{job_id}/quotes": {
         parameters: {
             query?: never;
@@ -648,6 +689,18 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** JobPaymentsOut */
+        JobPaymentsOut: {
+            job_status: components["schemas"]["JobStatus"];
+            /** Payments */
+            payments: components["schemas"]["PaymentOut"][];
+            summary: components["schemas"]["PaymentSummaryOut"];
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
+        };
         /**
          * JobStatus
          * @enum {string}
@@ -786,6 +839,64 @@ export interface components {
             offset: number;
             /** Total */
             total: number;
+        };
+        /** PaymentCreate */
+        PaymentCreate: {
+            /** Amount Cents */
+            amount_cents: number;
+            kind: components["schemas"]["PaymentKind"];
+            /** Method */
+            method?: string | null;
+            /**
+             * Received On
+             * Format: date
+             */
+            received_on: string;
+        };
+        /**
+         * PaymentKind
+         * @enum {string}
+         */
+        PaymentKind: "deposit" | "final";
+        /** PaymentOut */
+        PaymentOut: {
+            /** Amount Cents */
+            amount_cents: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["PaymentKind"];
+            /** Method */
+            method: string | null;
+            /**
+             * Received On
+             * Format: date
+             */
+            received_on: string;
+            /** Void Reason */
+            void_reason: string | null;
+            /** Voided At */
+            voided_at: string | null;
+        };
+        /** PaymentSummaryOut */
+        PaymentSummaryOut: {
+            /** Amount Due Cents */
+            amount_due_cents: number | null;
+            /** Balance Cents */
+            balance_cents: number | null;
+            /** Deposit Outstanding Cents */
+            deposit_outstanding_cents: number | null;
+            /** Deposit Required Cents */
+            deposit_required_cents: number | null;
+            /** Paid Cents */
+            paid_cents: number;
         };
         /** PublicLineOut */
         PublicLineOut: {
@@ -1053,6 +1164,11 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VoidRequest */
+        VoidRequest: {
+            /** Reason */
+            reason: string;
         };
     };
     responses: never;
@@ -1462,6 +1578,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_payments_jobs__job_id__payments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPaymentsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_payment_jobs__job_id__payments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPaymentsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    void_payment_jobs__job_id__payments__payment_id__void_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoidRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPaymentsOut"];
                 };
             };
             /** @description Validation Error */

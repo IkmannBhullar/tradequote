@@ -14,3 +14,5 @@ export type Client = Schemas["ClientOut"];
 export type Template = Schemas["TemplateOut"];
 export type Organization = Schemas["OrganizationOut"];
 export type Me = Schemas["MeResponse"];
+export type JobPayments = Schemas["JobPaymentsOut"];
+export type Payment = Schemas["PaymentOut"];

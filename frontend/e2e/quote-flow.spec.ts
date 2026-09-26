@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 // The core journey of the product, end to end, in a real browser.
-test("a contractor quotes a job and the client approves it", async ({ page, browser }) => {
+test("quote -> client approval -> work -> payment -> paid", async ({ page, browser }) => {
   // A unique email per run, so the test never collides with earlier runs.
   const email = `e2e-${Date.now()}@example.com`;
 
@@ -83,6 +83,25 @@ test("a contractor quotes a job and the client approves it", async ({ page, brow
     await page.getByRole("link", { name: "Jobs", exact: true }).click();
     const approvedColumn = page.getByRole("region", { name: "Approved" });
     await expect(approvedColumn.getByText("Repaint living room")).toBeVisible();
+  });
+
+  await test.step("do the work on the board: scheduled -> in progress -> completed", async () => {
+    for (const column of ["Scheduled", "In progress", "Completed"]) {
+      await page.getByRole("button", { name: `→ ${column}` }).click();
+      await expect(page.getByRole("region", { name: column }).getByText("Repaint living room")).toBeVisible();
+    }
+  });
+
+  await test.step("record the payment: the job moves to Paid by itself", async () => {
+    await page.getByRole("region", { name: "Completed" }).getByRole("link", { name: "Repaint living room" }).click();
+    await expect(page.getByTestId("balance")).toHaveText("$966.00");
+    await page.getByLabel("Amount ($)").fill("966");
+    await page.getByLabel("Method").fill("e-transfer");
+    await page.getByRole("button", { name: "Record payment" }).click();
+    await expect(page.getByText("Paid in full.")).toBeVisible();
+
+    await page.getByRole("link", { name: "Jobs", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Paid" }).getByText("Repaint living room")).toBeVisible();
   });
 });
 
