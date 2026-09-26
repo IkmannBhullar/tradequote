@@ -8,8 +8,8 @@ approves it through a public link, and the job is tracked from quote to paid.
 
 Painting is the first trade; other trades are added through data, not code.
 
-> **Status:** Milestone 4 (core API). The full backend for building quotes works: clients, jobs,
-> quotes with measured areas, overrides, live recalculation, and versioning. The frontend is next.
+> **Status:** Milestone 5 (frontend). A working web app: sign up, set rates, manage clients, track
+> jobs on a pipeline board, and build quotes with live totals. PDFs and client approval are next.
 
 ## Stack
 
@@ -37,7 +37,7 @@ make dev       # migrates, then runs the API on :8000 and the web app on :3000
 
 Then open:
 
-- Web app: http://localhost:3000
+- Web app: http://localhost:3000 (sign up; you'll land on Settings to enter your rates)
 - API docs (Swagger UI): http://localhost:8000/docs
 - Liveness: http://localhost:8000/health
 - Readiness (checks the DB): http://localhost:8000/health/ready
@@ -118,7 +118,8 @@ In Swagger UI (http://localhost:8000/docs), click **Authorize** and paste the to
   the request. Tenant-owned data is read and written through `TenantRepository`, which filters
   every query by that organization; tests prove one org can't reach another's data.
 - Not built yet (needed before onboarding customers beyond KBS): password reset, email
-  verification, login rate limiting, refresh tokens.
+  verification, login rate limiting, refresh tokens (today, you log in again after the 60-minute
+  token expires).
 
 ## Core API
 
@@ -148,10 +149,35 @@ How quotes behave:
 - Lists are paginated: `?limit=50&offset=0` returns `{items, total, limit, offset}`.
 - Another organization's ids always return 404, as if they didn't exist.
 
+## Frontend
+
+`frontend/` is a Next.js App Router app that acts as a **backend-for-frontend**:
+
+- The login token lives in an **httpOnly cookie** set by the Next.js server. Browser JavaScript
+  never sees it; Server Components and Server Actions call FastAPI with it.
+- `src/proxy.ts` redirects signed-out visitors to `/login` (a cheap cookie check); FastAPI does the
+  real authentication on every call, and an expired session sends you back to login.
+- API types are **generated** from FastAPI's OpenAPI schema. After changing backend endpoints or
+  schemas, run `make api-types` and commit the result (CI fails if they're stale).
+- The browser never calculates prices: every quote edit returns the backend's recalculated quote.
+
+| Page | What it does |
+| --- | --- |
+| `/jobs` | Pipeline board; each card offers only the moves the backend allows |
+| `/clients`, `/clients/[id]` | Client list, details, and a client's jobs |
+| `/jobs/[id]` | Job details and quote versions |
+| `/quotes/[id]` | Quote builder: areas, overrides, deposit, live totals, revisions |
+| `/settings` | Company name, labor rate, tax rate |
+
+Tests: `make frontend-test` (Vitest: utilities + quote builder with fake actions) and
+`make e2e` (Playwright: a real browser through sign-up → quote → $483.00 against the full stack;
+run `npx playwright install chromium` once first).
+
 ## Configuration
 
 All configuration comes from environment variables (see [`.env.example`](.env.example)), including
-`JWT_SECRET`, which must be at least 32 characters and should be generated per environment. Locally,
+`JWT_SECRET`, which must be at least 32 characters and should be generated per environment. The
+frontend's settings (`API_URL`) are documented in [`frontend/.env.example`](frontend/.env.example). Locally,
 they're read from a git-ignored `.env` in the repo root; in CI and production, they're set
 directly in the environment.
 
