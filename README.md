@@ -8,9 +8,9 @@ approves it through a public link, and the job is tracked from quote to paid.
 
 Painting is the first trade; other trades are added through data, not code.
 
-> **Status:** Milestone 7 (payments). The full loop works: build a quote, send a secure link, the
-> client approves, the job moves through the board, payments are recorded, and the job lands in
-> Paid. Next up: proving a second trade works with data alone.
+> **Status:** MVP complete (Milestones 0–8). The full loop works (quote, secure client approval,
+> job board, payments, paid) for two trades, painting and flooring, where flooring was added with
+> seed data only. Seed numbers are placeholders until KBS Painting provides real ones.
 
 ## Stack
 
@@ -216,6 +216,30 @@ method, date received).
   `DISPLAY_TIMEZONE`, returned by the API so every client agrees on it.
 - Recording a payment locks the job row (`SELECT … FOR UPDATE`), so two simultaneous payments can't
   both see the same balance and overpay.
+
+## Adding a trade
+
+Trades are data, not code (architecture rule 5). Flooring was added in Milestone 8 without changing
+any application code:
+
+1. Add a `TemplateSeed` with its items to `backend/app/seed.py` and list it in `SYSTEM_TEMPLATES`.
+   Each item needs a measure type (area / linear / count), a material with its purchase unit and
+   coverage, a waste factor, labor hours per unit, and default "coats" (use 1 when the trade has no
+   such concept).
+2. Run `make seed`. The template appears in every organization's quote builder.
+
+`tests/test_second_trade.py` proves a flooring job works end to end, and fails if application code
+ever names a trade.
+
+**Known limitations for multi-trade use** (found while adding flooring; each would need a code
+change, so none was made):
+
+- The UI calls the quantity multiplier "Coats", which is painting vocabulary; flooring shows "1".
+- Every item must have a material. Labor-only work (e.g. tearing out old carpet) or
+  customer-supplied materials would show a $0 material line.
+- One measured area feeds one item, so 250 sq ft of floor is entered twice (flooring and underlayment).
+- One labor rate per organization; multi-trade businesses often pay trades differently.
+- Organizations can't yet copy and edit system templates in the UI to set their own prices.
 
 ## Configuration
 
