@@ -29,7 +29,7 @@ export default defineConfig({
       url: "http://localhost:3000/login",
       reuseExistingServer: !CI,
       timeout: 60_000,
-      env: { API_URL: "http://localhost:8000" },
+      env: { API_URL: "http://localhost:8000", APP_URL: "http://localhost:3000" },
     },
   ],
 });

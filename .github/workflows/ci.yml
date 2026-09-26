@@ -28,8 +28,14 @@ jobs:
       # Postgres is started by `make db-up` (docker compose), on host port 5433.
       DATABASE_URL: postgresql+psycopg://tradequote:tradequote@localhost:5433/tradequote
       ENVIRONMENT: test
+      # PDF tests must run here: a missing library fails the job, never skips.
+      REQUIRE_PDF: "1"
     steps:
       - uses: actions/checkout@v7
+
+      # WeasyPrint (quote PDFs) needs these system libraries.
+      - name: Install PDF libraries
+        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core
 
       - uses: astral-sh/setup-uv@v10.2.0  # this action publishes no floating major tag
         with:
@@ -91,8 +97,13 @@ jobs:
       # A throwaway value for this CI run only; never used anywhere real.
       JWT_SECRET: ci-e2e-only-jwt-secret-0123456789abcdefghijklmnop
       API_URL: http://localhost:8000
+      APP_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v7
+
+      # WeasyPrint (quote PDFs) needs these system libraries.
+      - name: Install PDF libraries
+        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core
 
       - uses: astral-sh/setup-uv@v10.2.0
         with:
