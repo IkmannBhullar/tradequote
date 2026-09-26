@@ -106,7 +106,72 @@ INTERIOR_PAINTING = TemplateSeed(
     ),
 )
 
-SYSTEM_TEMPLATES: tuple[TemplateSeed, ...] = (INTERIOR_PAINTING,)
+# Milestone 8: the second trade, added with data only (architecture rule 5).
+# Flooring has no "coats": every item uses 1, so the coats multiplier in the
+# formulas is simply x1.
+FLOORING = TemplateSeed(
+    trade="flooring",
+    name="Flooring",
+    items=(
+        TemplateItemSeed(
+            name="Laminate plank",
+            measure_type=MeasureType.AREA,  # square feet of floor
+            material_name="Laminate flooring",
+            material_unit="box",
+            material_unit_cost_cents=5500,  # $55.00 / box
+            coverage_per_material_unit=Decimal("20"),  # sq ft per box
+            waste_factor=Decimal("0.10"),  # cuts and offcuts
+            labor_hours_per_unit=Decimal("0.04000"),  # ~25 sq ft/hour
+            default_coats=1,
+        ),
+        TemplateItemSeed(
+            name="Engineered hardwood",
+            measure_type=MeasureType.AREA,
+            material_name="Engineered hardwood",
+            material_unit="box",
+            material_unit_cost_cents=12000,
+            coverage_per_material_unit=Decimal("20"),
+            waste_factor=Decimal("0.08"),
+            labor_hours_per_unit=Decimal("0.06000"),
+            default_coats=1,
+        ),
+        TemplateItemSeed(
+            name="Underlayment",
+            measure_type=MeasureType.AREA,
+            material_name="Foam underlayment",
+            material_unit="roll",
+            material_unit_cost_cents=3500,
+            coverage_per_material_unit=Decimal("100"),  # sq ft per roll
+            waste_factor=Decimal("0.05"),
+            labor_hours_per_unit=Decimal("0.00500"),
+            default_coats=1,
+        ),
+        TemplateItemSeed(
+            name="Baseboard",
+            measure_type=MeasureType.LINEAR,  # linear feet of wall
+            material_name="MDF baseboard (8 ft)",
+            material_unit="piece",
+            material_unit_cost_cents=1200,
+            coverage_per_material_unit=Decimal("8"),  # linear ft per piece
+            waste_factor=Decimal("0.10"),
+            labor_hours_per_unit=Decimal("0.05000"),
+            default_coats=1,
+        ),
+        TemplateItemSeed(
+            name="Transition strips",
+            measure_type=MeasureType.COUNT,  # number of doorways
+            material_name="Transition strip",
+            material_unit="piece",
+            material_unit_cost_cents=2500,
+            coverage_per_material_unit=Decimal("1"),  # one strip per doorway
+            waste_factor=Decimal("0"),
+            labor_hours_per_unit=Decimal("0.50000"),
+            default_coats=1,
+        ),
+    ),
+)
+
+SYSTEM_TEMPLATES: tuple[TemplateSeed, ...] = (INTERIOR_PAINTING, FLOORING)
 
 
 def upsert_system_template(session: Session, seed: TemplateSeed) -> TradeTemplate:
