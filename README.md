@@ -8,9 +8,9 @@ approves it through a public link, and the job is tracked from quote to paid.
 
 Painting is the first trade; other trades are added through data, not code.
 
-> **Status:** Milestone 6 (PDF + client approval). Contractors build a quote, send the client a
-> secure link, and the client views it, downloads a branded PDF, and approves or declines by typing
-> their name; approval moves the job to Approved. Payments are next.
+> **Status:** Milestone 7 (payments). The full loop works: build a quote, send a secure link, the
+> client approves, the job moves through the board, payments are recorded, and the job lands in
+> Paid. Next up: proving a second trade works with data alone.
 
 ## Stack
 
@@ -201,6 +201,21 @@ Security (architecture rule 8):
   client-facing fields.
 - PDFs are rendered by WeasyPrint from an autoescaped Jinja2 template, with all URL fetching
   disabled (no file:// reads, no SSRF). Dates print in `DISPLAY_TIMEZONE`.
+
+## Payments
+
+On a job's page, the **Payments** card shows the quote total (from the latest approved quote), what's
+been paid, the balance, and any deposit still owed, and records payments (amount, deposit/final,
+method, date received).
+
+- **Paid is automatic:** a job is Paid exactly when it's completed and its balance is zero. The rule
+  runs after every payment, void, and move to Completed, so the board always matches the money.
+- **Payments are voided, never deleted:** a voided payment stays in the history with its reason and
+  stops counting; if that reopens a balance, a Paid job goes back to Completed.
+- Overpayments and future dates are rejected. "Today" is the business's date in
+  `DISPLAY_TIMEZONE`, returned by the API so every client agrees on it.
+- Recording a payment locks the job row (`SELECT … FOR UPDATE`), so two simultaneous payments can't
+  both see the same balance and overpay.
 
 ## Configuration
 
