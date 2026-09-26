@@ -15,6 +15,7 @@ existing quote.
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     BigInteger,
@@ -27,6 +28,9 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:  # imported only for type checking, avoiding a circular import
+    from app.models.job import Job
 
 from app.models.base import (
     Base,
@@ -68,6 +72,13 @@ class Quote(TenantScopedModel):
             "status <> 'approved' OR (approved_at IS NOT NULL AND approved_by_name IS NOT NULL)",
             name="approval_recorded",
         ),
+        # (M6) A declined quote must record when and by whom.
+        CheckConstraint(
+            "status <> 'declined' OR (declined_at IS NOT NULL AND declined_by_name IS NOT NULL)",
+            name="decline_recorded",
+        ),
+        # (M6) Anything past draft has been sent.
+        CheckConstraint("status = 'draft' OR sent_at IS NOT NULL", name="sent_recorded"),
         CheckConstraint("labor_rate_cents >= 0", name="labor_rate_non_negative"),
         CheckConstraint("tax_rate >= 0 AND tax_rate <= 1", name="tax_rate_range"),
     )
@@ -91,7 +102,15 @@ class Quote(TenantScopedModel):
     deposit_required_cents: Mapped[int] = mapped_column(BigInteger, server_default="0")
     approved_at: Mapped[datetime | None]
     approved_by_name: Mapped[str | None] = mapped_column(String(200))
+    # (M6) Sending and declining.
+    sent_at: Mapped[datetime | None]
+    declined_at: Mapped[datetime | None]
+    declined_by_name: Mapped[str | None] = mapped_column(String(200))
+    decline_reason: Mapped[str | None] = mapped_column(Text)
 
+    # (M6) Read-only link to the job (for PDFs and the public page). viewonly:
+    # the composite foreign key already manages job_id and organization_id.
+    job: Mapped["Job"] = relationship(primaryjoin="foreign(Quote.job_id) == Job.id", viewonly=True)
     areas: Mapped[list["QuoteArea"]] = relationship(
         back_populates="quote",
         cascade="all, delete-orphan",

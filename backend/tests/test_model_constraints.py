@@ -164,9 +164,23 @@ class TestQuoteRules:
     def test_approved_quote_with_approval_details_is_valid(self, db_session: Session) -> None:
         quote = make_quote(db_session, make_org(db_session))
         quote.status = QuoteStatus.APPROVED
+        quote.sent_at = utc_now()
         quote.approved_at = utc_now()
         quote.approved_by_name = "Jane Homeowner"
         db_session.flush()  # no error
+
+    def test_non_draft_quote_must_have_been_sent(self, db_session: Session) -> None:
+        quote = make_quote(db_session, make_org(db_session))
+
+        with expect_violation(db_session, "ck_quotes_sent_recorded"):
+            quote.status = QuoteStatus.SENT
+
+    def test_declined_quote_must_record_who_and_when(self, db_session: Session) -> None:
+        quote = make_quote(db_session, make_org(db_session))
+        quote.sent_at = utc_now()
+
+        with expect_violation(db_session, "ck_quotes_decline_recorded"):
+            quote.status = QuoteStatus.DECLINED
 
     def test_token_hash_requires_expiry(self, db_session: Session) -> None:
         quote = make_quote(db_session, make_org(db_session))

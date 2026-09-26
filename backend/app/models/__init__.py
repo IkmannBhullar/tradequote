@@ -11,6 +11,7 @@ from app.models.job import Job
 from app.models.organization import Organization
 from app.models.payment import Payment
 from app.models.quote import Quote, QuoteArea, QuoteLineItem
+from app.models.rate_limit import RateLimitCounter
 from app.models.trade_template import TemplateItem, TradeTemplate
 from app.models.user import User
 
@@ -23,6 +24,7 @@ __all__ = [
     "Quote",
     "QuoteArea",
     "QuoteLineItem",
+    "RateLimitCounter",
     "TemplateItem",
     "TradeTemplate",
     "User",

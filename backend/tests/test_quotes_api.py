@@ -31,8 +31,11 @@ def set_status(session: Session, quote_id: str, status: QuoteStatus) -> None:
     quote = session.get(Quote, quote_id)
     assert quote is not None
     quote.status = status
+    quote.sent_at = datetime.now(UTC)
     if status is QuoteStatus.APPROVED:
         quote.approved_at, quote.approved_by_name = datetime.now(UTC), "Jane Homeowner"
+    if status is QuoteStatus.DECLINED:
+        quote.declined_at, quote.declined_by_name = datetime.now(UTC), "Jane Homeowner"
     session.flush()
 
 

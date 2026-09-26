@@ -31,3 +31,15 @@ class PermissionDeniedError(DomainError):
 class InvalidInputError(DomainError):
     """-> 422. Input that passes schema validation but breaks a business rule
     (e.g. a deposit larger than the quote total)."""
+
+
+class GoneError(DomainError):
+    """-> 410. It existed, but not anymore (e.g. an expired quote link)."""
+
+
+class RateLimitedError(DomainError):
+    """-> 429 with a Retry-After header."""
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__("Too many requests. Please wait and try again.")
+        self.retry_after_seconds = retry_after_seconds
